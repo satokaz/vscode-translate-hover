@@ -1,5 +1,7 @@
 # vscode-translate-hover README
 
+![alt](vscode_hover.gif)
+
 ## Features
 
 選択されたテキストを google translate で翻訳し、結果をホバー表示する拡張機能です。
