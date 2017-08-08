@@ -22,7 +22,7 @@ export function activate(context: vscode.ExtensionContext) {
 					translate = await Translate(selection)
 					preResult = translate;
 					await console.log('translate =', translate);
-					return await new vscode.Hover('* ' + resultFormat(translate));
+					return await new vscode.Hover('* ' + resultFormat(translate) + `&nbsp; [⬇️](command:extension.translatePaste)`);
 				} else {
 					// マウスが移動した場合は、翻訳結果の hover 表示を辞める
 					// console.log('マウスが移動しました');
