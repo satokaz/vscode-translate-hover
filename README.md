@@ -1,6 +1,6 @@
 # vscode-translate-hover README
 
-![alt](vscode_hover.gif)
+![alt](https://raw.githubusercontent.com/satokaz/vscode-translate-hover/master/vscode_hover.gif)
 
 ## Features
 
