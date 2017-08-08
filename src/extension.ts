@@ -6,35 +6,45 @@ import * as WebRequest from 'web-request';
 export function activate(context: vscode.ExtensionContext) {
     console.log('Congratulations, your extension "vscode-translate-hover" is now active!');
 
-		let preSelection = ' ';
-		let preResult = ' ';
-		let translate;
-		// hover
-		vscode.languages.registerHoverProvider('*', {
-			async provideHover(document, position, token) {
+	let preSelection = ' ';
+	let preResult = ' ';
+	let translate;
 
-				// 選択された文字列をゲット
-				let selection = await document.getText(vscode.window.activeTextEditor.selection);
+	// hover
+	vscode.languages.registerHoverProvider('*', {
+		async provideHover(document, position, token) {
 
-				// 選択が空じゃないか? スペースだけじゃないか？ 一つ前の内容と同一じゃないか？をチェック
-				if (selection != "" && selection != " " && selection != preSelection) {
-					preSelection = selection;
+		// 選択された文字列をゲット
+			let selection = await document.getText(vscode.window.activeTextEditor.selection);
+
+			// 選択が空じゃないか? スペースだけじゃないか？ 一つ前の内容と同一じゃないか？をチェック
+			if (selection != "" && selection != " " && selection != preSelection) {
+				preSelection = selection;
+
+				if(selection === document.getText(vscode.window.activeTextEditor.selection)){
 					translate = await Translate(selection)
-					preResult = translate;
-					await console.log('translate =', translate);
-					return await new vscode.Hover('* ' + resultFormat(translate) + `&nbsp; [⬇️](command:extension.translatePaste)`);
 				} else {
-					// マウスが移動した場合は、翻訳結果の hover 表示を辞める
-					// console.log('マウスが移動しました');
-					let cHover = document.getText(document.getWordRangeAtPosition(position));
-					// console.log('同じ内容を何度も翻訳させません！');
-					if (selection.indexOf(cHover) != -1) {
-						// return await new vscode.Hover('* ' + preResult.replace(/[（]/g, ' (').replace(/[）]/g, ') ') + ' `\[使い回し\]`');
-						return await new vscode.Hover('* ' + resultFormat(preResult) + ' `\[使い回し\]`' + `&nbsp; [⬇️](command:extension.translatePaste)`);
-					}
+					console.log('格納されている値と選択されている値が異なります');
+					return;
+					// selection = await document.getText(vscode.window.activeTextEditor.selection);
+					// translate = await Translate(selection);
+				}
+
+				preResult = translate;
+				await console.log('translate =', translate);
+				return await new vscode.Hover('* ' + resultFormat(translate) + `&nbsp; [⬇️](command:extension.translatePaste)`);
+			} else {
+				// マウスが移動した場合は、翻訳結果の hover 表示を辞める
+				// console.log('マウスが移動しました');
+				let cHover = document.getText(document.getWordRangeAtPosition(position));
+				// console.log('同じ内容を何度も翻訳させません！');
+				if (selection.indexOf(cHover) != -1) {
+					// return await new vscode.Hover('* ' + preResult.replace(/[（]/g, ' (').replace(/[）]/g, ') ') + ' `\[使い回し\]`');
+					return await new vscode.Hover('* ' + resultFormat(preResult) + ' `\[使い回し\]`' + `&nbsp; [⬇️](command:extension.translatePaste)`);
 				}
 			}
-		});
+		}
+	});
 
 		// 翻訳結果の paste コマンド
 		context.subscriptions.push(vscode.commands.registerCommand('extension.translatePaste', () => {
@@ -105,9 +115,11 @@ function Translate(selection) {
 				});
 }
 
+////
 // Google 翻訳に渡す URL を生成
+// markdown header (###) で始まると、翻訳が行われない。選択を encodeURIComponent() で encode して渡すこと
+//
 function googleTranslate(selection, targetLanguage, fromLanguage) {
 	console.log(selection);
-	return 'https://translate.google.com/translate_a/single?client=gtx&sl=' + (fromLanguage || 'auto') + '&tl=' + (targetLanguage || 'auto') + '&dt=t&dt=bd&ie=UTF-8&oe=UTF-8&dj=1&source=icon&q=' + selection;
+	return 'https://translate.google.com/translate_a/single?client=gtx&sl=' + (fromLanguage || 'auto') + '&tl=' + (targetLanguage || 'auto') + '&dt=t&dt=bd&ie=UTF-8&oe=UTF-8&dj=1&source=icon&q=' + encodeURIComponent(selection);
 }
-
