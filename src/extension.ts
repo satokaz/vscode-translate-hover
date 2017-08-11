@@ -26,20 +26,19 @@ export function activate(context: vscode.ExtensionContext) {
 				} else {
 					console.log('格納されている値と選択されている値が異なります');
 					return;
+
 					// selection = await document.getText(vscode.window.activeTextEditor.selection);
 					// translate = await Translate(selection);
 				}
-
 				preResult = translate;
 				await console.log('translate =', translate);
-				return await new vscode.Hover('* ' + resultFormat(translate) + `&nbsp; [⬇️](command:extension.translatePaste)`);
+					return await new vscode.Hover('* ' + resultFormat(translate) + `&nbsp; [⬇️](command:extension.translatePaste)`);
 			} else {
 				// マウスが移動した場合は、翻訳結果の hover 表示を辞める
 				// console.log('マウスが移動しました');
 				let cHover = document.getText(document.getWordRangeAtPosition(position));
 				// console.log('同じ内容を何度も翻訳させません！');
 				if (selection.indexOf(cHover) != -1) {
-					// return await new vscode.Hover('* ' + preResult.replace(/[（]/g, ' (').replace(/[）]/g, ') ') + ' `\[使い回し\]`');
 					return await new vscode.Hover('* ' + resultFormat(preResult) + ' `\[使い回し\]`' + `&nbsp; [⬇️](command:extension.translatePaste)`);
 				}
 			}
@@ -81,15 +80,17 @@ export function activate(context: vscode.ExtensionContext) {
 
 // this method is called when your extension is deactivated
 export function deactivate() {
+
 }
 
 // 翻訳結果の整形
-function resultFormat(translate){
+function resultFormat(translate) {
 	return translate.replace(/[（]/g, ' (').replace(/[）]/g, ') ');
 }
 
 // 翻訳 (ひとまず 英語 -> 日本語に固定)
 function Translate(selection) {
+
 	let cfg = vscode.workspace.getConfiguration();
 	let proxy = String(cfg.get("http.proxy"));
 	let api = String('google');
@@ -101,6 +102,7 @@ function Translate(selection) {
 	// console.log(translateStr);
 
 	return WebRequest.get(translateStr, { "proxy": proxy }).then((TResult) => {
+
 					let translateResult;
 					let res = JSON.parse(TResult.content.toString());
 					let result = [];
@@ -115,7 +117,7 @@ function Translate(selection) {
 				});
 }
 
-////
+// 
 // Google 翻訳に渡す URL を生成
 // markdown header (###) で始まると、翻訳が行われない。選択を encodeURIComponent() で encode して渡すこと
 //
