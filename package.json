@@ -2,7 +2,7 @@
   "name": "vscode-translate-hover",
   "displayName": "vscode-translate-hover",
   "description": "",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "satokaz",
   "engines": {
     "vscode": "^1.14.0"
@@ -44,6 +44,7 @@
     "@types/mocha": "^2.2.32"
   },
   "dependencies": {
-    "web-request": "^1.0.7"
+    "request": "^2.81.0",
+    "request-promise": "^4.2.1"
   }
 }
