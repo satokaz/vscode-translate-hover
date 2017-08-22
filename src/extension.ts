@@ -58,7 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
                             await text.push(await resultFormat(preResult[i].toString()));
                         // }
                     });
-                    text.push(`[](command:extension.translatePaste) 翻訳結果をペースト`);
+                    text.push(`[️️️⬇️](command:extension.translatePaste) 翻訳結果をペースト`);
                     return await new vscode.Hover(text, wordRange);
 				}
 			}
