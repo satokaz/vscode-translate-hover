@@ -35,7 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
             preResult = translate;
-            console.log('preResult =', preResult);
+            // console.log('preResult =', preResult);
             await text.push('![test](https://www.google.co.jp/images/branding/googleg/1x/googleg_standard_color_128dp.png|height=12)' + ' **翻訳結果**');
             await preResult.forEach(async function(a, i){
                 // if(i != 0){
@@ -127,7 +127,7 @@ async function Translate(selection) {
 
 	// console.log(request(translateStr));
 	return request(options).then(async res => {
-		console.log(res);
+		// console.log(res);
 		let result = [];
         let dict = [];
 
@@ -149,9 +149,9 @@ async function Translate(selection) {
 			translateResult = dict.join('');
         }
 
-		console.log(result);
-		console.log(dict);
-        console.log('translateResult = ', translateResult);
+		// console.log(result);
+		// console.log(dict);
+        // console.log('translateResult = ', translateResult);
         
 		return [translateResult];
 	});
