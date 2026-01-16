@@ -21,14 +21,21 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 			
 			let selection = document.getText(editor.selection);
+			
+			// デバッグ: 選択されたテキストをログ出力
+			if (selection && selection !== "" && selection !== " ") {
+				console.log('[DEBUG] Selected text:', JSON.stringify(selection));
+				console.log('[DEBUG] Selection length:', selection.length);
+			}
 
 			// 選択が空じゃないか? スペースだけじゃないか? 一つ前の内容と同一じゃないか?をチェック
 			if (selection !== "" && selection !== " " && selection !== preSelection) {
+				console.log('[DEBUG] New selection detected, starting translation...');
 				preSelection = selection;
 
 				if(selection === document.getText(editor.selection)){
 					translate = await Translate(selection);
-					// await console.log('translate =', translate);
+					console.log('[DEBUG] Translation result:', translate);
 				} else {
 					console.log('格納されている値と選択されている値が異なります');
 					// selection = await document.getText(editor.selection);
@@ -40,7 +47,7 @@ export function activate(context: vscode.ExtensionContext) {
 				return new vscode.Hover('* ' + resultFormat(translate) + `&nbsp; [⬇️](command:extension.translatePaste)`);
 			} else {
 				// マウスが移動した場合は、翻訳結果の hover 表示を辞める
-				// console.log('マウスが移動しました');
+				console.log('[DEBUG] Using cached translation for selection');
 				const cHover = document.getText(document.getWordRangeAtPosition(position));
 				// console.log('同じ内容を何度も翻訳させません!');
 				if (selection.indexOf(cHover) !== -1) {
