@@ -19,8 +19,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   - Added esModuleInterop and resolveJsonModule
 - Improved code quality with strict TypeScript checks
 - Added proper null/undefined checks for editor instances
-- Removed deprecated `activationEvents` configuration
+- Added `activationEvents: onStartupFinished` to enable hover functionality on startup
 - Updated build scripts to use modern npm commands
+- Added comprehensive debug logging for text selection and translation process
 
 ### Fixed
 - Fixed potential null pointer exceptions with editor access
