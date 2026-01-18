@@ -294,13 +294,29 @@ F5キーでデバッグモードを起動（.vscode/launch.jsonに設定済み�
 
 コンソールには以下のデバッグ情報が出力されます：
 
+#### 設定ロード（config.ts）
+- `[DEBUG] Config loaded: {translationMethod, openaiModel, hasApiKey}` - 設定読み込み時のログ
+
+#### キャッシュ操作（extension.ts）
+- `[DEBUG] Selected text: "<text>"` - 選択されたテキスト
+- `[DEBUG] Selection length: <number>` - 選択文字数
+- `[DEBUG] New selection detected, starting translation...` - 新規選択検出
+- `[DEBUG] Translation result: <result>` - 翻訳結果
+- `[DEBUG] Cache updated: {method, modelName, hasResult}` - キャッシュ更新
+- `[DEBUG] Using cached translation for selection` - キャッシュ使用
+
+#### モデル名表示（hover.ts）
+- `[DEBUG] Displaying model name in hover: <modelName>` - モデル名表示
+- `[DEBUG] OpenAI method but no modelName provided` - モデル名なし（診断用）
+
+#### System Roleサポート（openai.ts）
 - `[DEBUG] Checking cache for key: <modelName>::<baseUrl>` - キャッシュ検索
 - `[DEBUG] Cache hit for <modelName> at <baseUrl>: <result>` - キャッシュヒット
 - `[DEBUG] Cache miss for <modelName> at <baseUrl>` - キャッシュミス
 - `[DEBUG] Check result for <modelName>: <result>` - チェック結果
 - `[DEBUG] Stored in cache: <key> => <result>` - キャッシュ保存
-- `Preloading system role support for model: <modelName>` - 事前チェック開始
-- `System role support preload completed for: <modelName>` - 事前チェック完了
+- `[INFO] Preloading system role support for model: <modelName>` - 事前チェック開始
+- `[INFO] System role support preload completed for: <modelName>` - 事前チェック完了
 
 ### デバッグログ制御
 

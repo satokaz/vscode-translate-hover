@@ -17,12 +17,15 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   - Displayed as decorative text below the translation method header
   - Only shown for OpenAI translations (not Google Translate)
   - **XSS protection**: Model name is properly escaped
-- **Comprehensive Debug Logging**: Added detailed debug messages for cache operations
-  - Controllable via `DEBUG_LOG_ENABLED` flag
-  - Cache key generation
-  - Cache hit/miss status
-  - System role support check results
-  - Preload summary statistics
+- **Enhanced Diagnostics Logging**: Added comprehensive debug logging across all components
+  - **Configuration loading**: Logs translation method, model, and API key status
+  - **Cache operations**: Logs cache updates with method, model name, and result status
+  - **Model display**: Logs model name display in hover, including cases where model name is missing
+  - **System role support**: Controllable via `DEBUG_LOG_ENABLED` flag in openai.ts
+    - Cache key generation
+    - Cache hit/miss status
+    - System role support check results
+    - Preload summary statistics
 - **New Type Definitions**: Added `OpenAIClientConfig` and `SystemRoleCheckResult` interfaces for better type safety
 
 ### Changed

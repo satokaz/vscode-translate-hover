@@ -64,6 +64,12 @@ export function activate(context: vscode.ExtensionContext) {
 					modelName: currentConfig.translationMethod === 'openai' ? currentConfig.openaiModel : undefined
 				};
 				
+				console.log('[DEBUG] Cache updated:', JSON.stringify({
+					method: cache.method,
+					modelName: cache.modelName,
+					hasResult: !!cache.result
+				}));
+				
 				return createHover(translate, false, cache.method, cache.modelName);
 			} else {
 				// マウスが移動した場合は、翻訳結果の hover 表示を辞める

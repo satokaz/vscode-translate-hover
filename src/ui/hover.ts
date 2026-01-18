@@ -32,7 +32,10 @@ export function createHover(translationResult: string, isCached: boolean, method
 	
 	// OpenAI使用時はモデル名を表示（エスケープ済み）
 	if (method === 'openai' && modelName) {
+		console.log('[DEBUG] Displaying model name in hover:', modelName);
 		markdown.appendMarkdown(`<sub>モデル: ${escapeHtml(modelName)}</sub>\n\n`);
+	} else if (method === 'openai') {
+		console.log('[DEBUG] OpenAI method but no modelName provided');
 	}
 	
 	markdown.appendMarkdown('---\n\n');
