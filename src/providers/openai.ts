@@ -107,6 +107,43 @@ async function checkSystemRoleSupport(
 }
 
 // ================================================================================
+// LLMベース言語検出
+// ================================================================================
+
+/**
+ * LLMを使用してテキストの言語を検出
+ * @param text 検出するテキスト
+ * @param openai OpenAIクライアント
+ * @returns 言語コード（ja, en, zh, ko など）
+ */
+export async function detectLanguageWithLLM(text: string, openai: OpenAI, model: string): Promise<string> {
+	try {
+		debugLog('Detecting language with LLM for text:', text.substring(0, 50) + '...');
+		
+		const response = await openai.chat.completions.create({
+			model: model,
+			messages: [
+				{
+					role: 'user',
+					content: `Detect the language of the following text and respond with ONLY the ISO 639-1 language code (e.g., "ja" for Japanese, "en" for English, "zh" for Chinese, "ko" for Korean). Do not include any explanation.\n\nText: ${text}`
+				}
+			],
+			max_tokens: 10,
+			temperature: 0
+		});
+
+		const detectedLang = response.choices[0]?.message?.content?.trim().toLowerCase() || 'en';
+		debugLog('LLM detected language:', detectedLang);
+		
+		return detectedLang;
+	} catch (error: unknown) {
+		console.error('[ERROR] LLM language detection failed:', error);
+		// フォールバック: 英語と仮定
+		return 'en';
+	}
+}
+
+// ================================================================================
 // OpenAI翻訳関数
 // ================================================================================
 

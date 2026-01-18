@@ -13,6 +13,7 @@
   - auto-ja モード: 日本語→英語、その他→日本語
   - auto-en モード: 英語→日本語、その他→英語
   - auto-zh モード: 中国語→英語、その他→中国語
+  - **二つの検出方式**: 正規表現ベース（高速、無料）とLLMベース（高精度、OpenAIのみ）
 - Google翻訳とOpenAI APIの切り替え可能な翻訳エンジン
 - 翻訳結果のキャッシュ機能
 - 翻訳結果のペーストコマンド
@@ -232,6 +233,7 @@ import { formatTranslationResult } from './utils/format';
 {
   "translateHover.translationMethod": "google" | "openai",
   "translateHover.targetLanguage": "auto-ja" | "auto-en" | "auto-zh" | "ja" | "en" | "zh" | etc.,
+  "translateHover.languageDetectionMethod": "regex" | "llm",
   "translateHover.openaiApiKey": "sk-...",
   "translateHover.openaiBaseUrl": "https://custom-endpoint.com/v1",
   "translateHover.openaiModel": "gpt-4o-mini" | "o1-preview" | etc.,
@@ -243,6 +245,10 @@ import { formatTranslationResult } from './utils/format';
 - `auto-ja`: 日本語→英語、その他の言語→日本語
 - `auto-en`: 英語→日本語、その他の言語→英語
 - `auto-zh`: 中国語→英語、その他の言語→中国語
+
+**言語検出方式**:
+- `regex`: 正規表現ベース（高速、無料、Google/OpenAI両方で使用可）
+- `llm`: LLMベース（高精度、OpenAI使用時のみ、追加コストあり）
 
 ## 開発ワークフロー
 

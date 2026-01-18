@@ -13,6 +13,7 @@
   * `auto-ja`: 日本語→英語、その他の言語→日本語
   * `auto-en`: 英語→日本語、その他の言語→英語
   * `auto-zh`: 中国語→英語、その他の言語→中国語
+  * **二つの検出方式**: 正規表現（高速、無料）またはLLM（高精度、OpenAIのみ）
 * **Google翻訳**: インターネット接続のみで利用可能な無料翻訳
 * **OpenAI API翻訳**: GPT-4o, GPT-4o-mini, o1シリーズなど、OpenAIの最新モデルを使用した高品質な翻訳
   * o1-preview, o1-miniなどのReasoningモデルに自動対応
@@ -43,6 +44,9 @@
 * `translateHover.targetLanguage`: 翻訳先の言語 (デフォルト: `ja`)
   * 自動検出モード: `auto-ja`, `auto-en`, `auto-zh` - ソース言語に応じて翻訳方向を自動切り替え
   * 固定言語: `ja`, `en`, `zh`, `ko`, `fr`, `de`, `es`, `it`, `pt`, `ru`, `ar`, `hi` など
+* `translateHover.languageDetectionMethod`: 言語検出方式 (デフォルト: `regex`)
+  * `regex`: 正規表現ベースの高速検出（無料、Google/OpenAI両方で使用可）
+  * `llm`: LLMベースの高精度検出（OpenAI使用時のみ、追加コストあり）
 
 ### OpenAI設定 (translationMethodが`openai`の場合)
 

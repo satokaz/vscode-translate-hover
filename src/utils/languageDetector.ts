@@ -85,22 +85,25 @@ export function detectLanguage(text: string): string {
  * @param text 翻訳するテキスト
  * @param autoConfig auto-ja などの設定
  * @param pairs 言語ペア設定
+ * @param detectedLang 検出された言語コード（省略時は自動検出）
  * @returns 決定されたターゲット言語
  */
 export function resolveTargetLanguage(
 	text: string,
 	autoConfig: string,
-	pairs: { [key: string]: { primary: string, secondary: string } }
+	pairs: { [key: string]: { primary: string, secondary: string } },
+	detectedLang?: string
 ): string {
 	const config = pairs[autoConfig];
 	if (!config) {
 		return autoConfig; // auto設定でない場合はそのまま返す
 	}
 	
-	const detectedLang = detectLanguage(text);
+	// 言語が指定されていない場合は自動検出
+	const sourceLang = detectedLang || detectLanguage(text);
 	
 	// 検出された言語がプライマリ言語の場合、セカンダリ言語に翻訳
-	if (detectedLang === config.primary) {
+	if (sourceLang === config.primary) {
 		return config.secondary;
 	}
 	

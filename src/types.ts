@@ -22,6 +22,7 @@ export interface TranslationConfig {
 	openaiBaseUrl: string;
 	openaiModel: string;
 	reasoningEffort?: string;
+	languageDetectionMethod: string;
 }
 
 /**

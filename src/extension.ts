@@ -5,10 +5,11 @@ import { TranslationCache } from './types';
 import { getTranslationConfig } from './config';
 import { createHover } from './ui/hover';
 import { translateWithGoogle } from './providers/google';
-import { translateWithOpenAI, preloadSystemRoleSupportForModel } from './providers/openai';
+import { translateWithOpenAI, preloadSystemRoleSupportForModel, detectLanguageWithLLM } from './providers/openai';
 import { formatTranslationResult } from './utils/format';
-import { resolveTargetLanguage } from './utils/languageDetector';
+import { resolveTargetLanguage, detectLanguage } from './utils/languageDetector';
 import { AUTO_DETECT_PREFIX, AUTO_DETECT_PAIRS } from './constants';
+import OpenAI from 'openai';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Congratulations, your extension "vscode-translate-hover" is now active!');
@@ -130,8 +131,29 @@ async function translateText(selection: string, config: ReturnType<typeof getTra
 	// 自動言語検出が有効な場合、適切なターゲット言語を決定
 	let targetLanguage = config.targetLanguage;
 	if (config.targetLanguage.startsWith(AUTO_DETECT_PREFIX)) {
-		targetLanguage = resolveTargetLanguage(selection, config.targetLanguage, AUTO_DETECT_PAIRS);
-		console.log('[DEBUG] Auto-detect mode: detected target language:', targetLanguage);
+		let detectedLang: string | undefined;
+		
+		// LLMベース言語検出（OpenAI使用時のみ）
+		if (config.languageDetectionMethod === 'llm' && config.translationMethod === 'openai' && config.openaiApiKey) {
+			try {
+				const openai = new OpenAI({
+					apiKey: config.openaiApiKey,
+					...(config.openaiBaseUrl ? { baseURL: config.openaiBaseUrl } : {})
+				});
+				detectedLang = await detectLanguageWithLLM(selection, openai, config.openaiModel);
+				console.log('[DEBUG] LLM detected language:', detectedLang);
+			} catch (error) {
+				console.error('[ERROR] LLM language detection failed, falling back to regex:', error);
+				detectedLang = detectLanguage(selection);
+			}
+		} else {
+			// 正規表現ベース検出（デフォルト、またはGoogle翻訳時）
+			detectedLang = detectLanguage(selection);
+			console.log('[DEBUG] Regex detected language:', detectedLang);
+		}
+		
+		targetLanguage = resolveTargetLanguage(selection, config.targetLanguage, AUTO_DETECT_PAIRS, detectedLang);
+		console.log('[DEBUG] Auto-detect mode: target language:', targetLanguage);
 	}
 	
 	if (config.translationMethod === 'openai') {

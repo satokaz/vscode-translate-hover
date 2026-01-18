@@ -18,7 +18,8 @@ export function getTranslationConfig(): TranslationConfig {
 		openaiApiKey: cfg.get<string>('openaiApiKey', ''),
 		openaiBaseUrl: cfg.get<string>('openaiBaseUrl', ''),
 		openaiModel: cfg.get<string>('openaiModel', DEFAULTS.OPENAI_MODEL),
-		reasoningEffort: cfg.get<string>('openaiReasoningEffort', '')
+		reasoningEffort: cfg.get<string>('openaiReasoningEffort', ''),
+		languageDetectionMethod: cfg.get<string>('languageDetectionMethod', DEFAULTS.LANGUAGE_DETECTION_METHOD)
 	};
 	
 	console.log('[DEBUG] Config loaded:', JSON.stringify({

@@ -10,8 +10,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   - New `auto-ja` mode: Japanese → English, other languages → Japanese
   - New `auto-en` mode: English → Japanese, other languages → English
   - New `auto-zh` mode: Chinese → English, other languages → Chinese
-  - Language detection based on character composition (Hiragana, Katakana, Kanji, Hangul, etc.)
-  - Configurable via `translateHover.targetLanguage` setting
+  - **Dual detection methods**:
+    - **Regex-based** (default): Fast, free, character composition analysis
+    - **LLM-based**: High accuracy using OpenAI API (OpenAI mode only, additional cost)
+  - Configurable via `translateHover.targetLanguage` and `translateHover.languageDetectionMethod` settings
   - Works with both Google Translate and OpenAI API
 - **Dynamic System Role Support Detection**: Automatically detects whether an OpenAI model supports the `system` role
   - Performs lightweight check (1 token) on first use of each model
