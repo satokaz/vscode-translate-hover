@@ -1,19 +1,19 @@
 {
   "name": "vscode-translate-hover",
   "displayName": "vscode-translate-hover",
-  "description": "",
-  "version": "0.0.2",
+  "description": "Translate selected text using Google Translate and display the result in a hover",
+  "version": "0.1.0",
   "publisher": "satokaz",
   "engines": {
-    "vscode": "^1.14.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
     "Other"
   ],
   "activationEvents": [
-    "*"
+    "onStartupFinished"
   ],
-  "main": "./out/src/extension",
+  "main": "./out/src/extension.js",
   "contributes": {
     "commands": [
       {
@@ -28,23 +28,72 @@
         "mac": "cmd+shift+t",
         "when": "editorTextFocus"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Translate Hover",
+      "properties": {
+        "translateHover.translationMethod": {
+          "type": "string",
+          "enum": [
+            "google",
+            "openai"
+          ],
+          "default": "google",
+          "description": "翻訳方法を選択 (google: Google翻訳, openai: OpenAI API)"
+        },
+        "translateHover.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI APIキー (翻訳方法がopenaiの場合に必要)"
+        },
+        "translateHover.openaiBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI APIのベースURL (LiteLLM ProxyなどAPI互換サービスを使用する場合に指定。空の場合はデフォルトのOpenAI APIを使用)"
+        },
+        "translateHover.openaiModel": {
+          "type": "string",
+          "default": "gpt-4o-mini",
+          "description": "使用するOpenAIモデル"
+        },
+        "translateHover.openaiReasoningEffort": {
+          "type": "string",
+          "enum": [
+            "",
+            "low",
+            "medium",
+            "high"
+          ],
+          "default": "",
+          "description": "推論努力レベル (o1シリーズのモデルで使用。空の場合は未指定)"
+        },
+        "translateHover.targetLanguage": {
+          "type": "string",
+          "default": "ja",
+          "description": "翻訳先の言語コード (例: ja, en, zh)"
+        }
+      }
+    }
   },
   "scripts": {
-    "vscode:prepublish": "tsc -p ./",
-    "compile": "tsc -watch -p ./",
-    "postinstall": "node ./node_modules/vscode/bin/install",
-    "test": "node ./node_modules/vscode/bin/test"
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "vscode-test",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
   },
   "devDependencies": {
-    "typescript": "^2.0.3",
-    "vscode": "^1.0.0",
-    "mocha": "^2.3.3",
-    "@types/node": "^6.0.40",
-    "@types/mocha": "^2.2.32"
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.x",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8",
+    "typescript": "^5.3.3"
   },
   "dependencies": {
-    "request": "^2.81.0",
-    "request-promise": "^4.2.1"
+    "axios": "^1.6.5",
+    "openai": "^4.77.3"
   }
 }

@@ -1,45 +1,82 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import * as request from 'request-promise';
+import { TranslationCache } from './types';
+import { getTranslationConfig } from './config';
+import { createHover } from './ui/hover';
+import { translateWithGoogle } from './providers/google';
+import { translateWithOpenAI, preloadSystemRoleSupportForModel } from './providers/openai';
+import { formatTranslationResult } from './utils/format';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Congratulations, your extension "vscode-translate-hover" is now active!');
 
-	let preSelection = ' ';
-	let preResult = ' ';
-	let translate;
+	// systemロールサポートの事前チェック（バックグラウンド実行）
+	preloadSystemRoleSupport().catch(error => {
+		console.error('[ERROR] Preload system role check failed:', error);
+	});
+
+	let cache: TranslationCache = {
+		selection: ' ',
+		result: ' ',
+		method: '',
+		modelName: undefined
+	};
+	
+	let translate: string | undefined;
 	
 	// hover
 	vscode.languages.registerHoverProvider('*', {
 		async provideHover(document, position, token) {
 			
 		// 選択された文字列をゲット
-			let selection = document.getText(vscode.window.activeTextEditor.selection);
+			const editor = vscode.window.activeTextEditor;
+			if (!editor) {
+				return;
+			}
+			
+			let selection = document.getText(editor.selection);
+			
+			// デバッグ: 選択されたテキストをログ出力
+			if (selection && selection !== "" && selection !== " ") {
+				console.log('[DEBUG] Selected text:', JSON.stringify(selection));
+				console.log('[DEBUG] Selection length:', selection.length);
+			}
 
-			// 選択が空じゃないか? スペースだけじゃないか？ 一つ前の内容と同一じゃないか？をチェック
-			if (selection != "" && selection != " " && selection != preSelection) {
-				preSelection = selection;
+			// 選択が空じゃないか? スペースだけじゃないか? 一つ前の内容と同一じゃないか?をチェック
+			if (selection !== "" && selection !== " " && selection !== cache.selection) {
+				console.log('[DEBUG] New selection detected, starting translation...');
 
-				if(selection === document.getText(vscode.window.activeTextEditor.selection)){
-					translate = await Translate(selection);
-					// await console.log('translate =', translate);
+				if(selection === document.getText(editor.selection)){
+					const config = getTranslationConfig();
+					translate = await translateText(selection, config);
+					console.log('[DEBUG] Translation result:', translate);
 				} else {
-					console.log('格納されている値と選択されている値が異なります');
-					// selection = await document.getText(vscode.window.activeTextEditor.selection);
-					// translate = await Translate(selection);
+					console.log('[DEBUG] Selection mismatch');
 					return;
 				}
 
-				preResult = translate;
-					return await new vscode.Hover('* ' + await resultFormat(translate) + `&nbsp; [⬇️](command:extension.translatePaste)`);
+				const currentConfig = getTranslationConfig();
+				cache = {
+					selection: selection,
+					result: translate,
+					method: currentConfig.translationMethod,
+					modelName: currentConfig.translationMethod === 'openai' ? currentConfig.openaiModel : undefined
+				};
+				
+				console.log('[DEBUG] Cache updated:', JSON.stringify({
+					method: cache.method,
+					modelName: cache.modelName,
+					hasResult: !!cache.result
+				}));
+				
+				return createHover(translate, false, cache.method, cache.modelName);
 			} else {
 				// マウスが移動した場合は、翻訳結果の hover 表示を辞める
-				// console.log('マウスが移動しました');
-				let cHover = document.getText(document.getWordRangeAtPosition(position));
-				// console.log('同じ内容を何度も翻訳させません！');
-				if (selection.indexOf(cHover) != -1) {
-					return await new vscode.Hover('* ' + await resultFormat(preResult) + '`\[使い回し\]`' + `&nbsp; [⬇️](command:extension.translatePaste)`);
+				console.log('[DEBUG] Using cached translation for selection');
+				const cHover = document.getText(document.getWordRangeAtPosition(position));
+				if (selection.indexOf(cHover) !== -1) {
+				return createHover(cache.result, true, cache.method, cache.modelName);
 				}
 			}
 		}
@@ -48,33 +85,37 @@ export function activate(context: vscode.ExtensionContext) {
 		// 翻訳結果の paste コマンド
 		context.subscriptions.push(vscode.commands.registerCommand('extension.translatePaste', () => {
 			// 翻訳結果が何もない場合(undefined) は、ペーストしない
-			if(translate == undefined){
+			if(translate === undefined){
 				return;
 			}
 			// カーソルがある行を取得
-			let editor = vscode.window.activeTextEditor;
-			let selection2 = editor.selection;
-			let startLine = selection2.start.line;
-			let lastCharIndex = vscode.window.activeTextEditor.document.lineAt(startLine).text.length;
+			const editor = vscode.window.activeTextEditor;
+			if (!editor) {
+				return;
+			}
+			
+			const selection2 = editor.selection;
+			const startLine = selection2.start.line;
+			const lastCharIndex = editor.document.lineAt(startLine).text.length;
 
 			if (selection2.isReversed === true) {
 					// 右から左へ選択した場合
 					editor.edit(edit =>
-							edit.insert(new vscode.Position(Number(selection2.anchor.line) + 1, 0), resultFormat(translate) + '\n')
+							edit.insert(new vscode.Position(Number(selection2.anchor.line) + 1, 0), formatTranslationResult(translate!) + '\n')
 					);
-			} else if (selection2.isSingleLine === false && selection2.end.character == 0) {
+			} else if (selection2.isSingleLine === false && selection2.end.character === 0) {
 					// ダブルクリックで選択した場合
 					editor.edit(edit =>
-							edit.insert(new vscode.Position(Number(selection2.end.line), 0), resultFormat(translate) + '\n')
+							edit.insert(new vscode.Position(Number(selection2.end.line), 0), formatTranslationResult(translate!) + '\n')
 					);
 			} else {
 					// 左から右へ選択した場合 (通常の選択)
 					editor.edit(edit =>
-							edit.insert(new vscode.Position(Number(selection2.end.line) + 1, 0), resultFormat(translate) + '\n')
+							edit.insert(new vscode.Position(Number(selection2.end.line) + 1, 0), formatTranslationResult(translate!) + '\n')
 					);
 			}
 			// ペースト後に選択解除
-			vscode.window.activeTextEditor.selection = new vscode.Selection(selection2.active, selection2.active);
+			editor.selection = new vscode.Selection(selection2.active, selection2.active);
 		}));
 }
 
@@ -83,62 +124,44 @@ export function deactivate() {
 
 }
 
-// 翻訳結果の整形
-function resultFormat(translate) {
-	return translate.replace(/[（]/g, ' (').replace(/[）]/g, ') ');
+async function translateText(selection: string, config: ReturnType<typeof getTranslationConfig>): Promise<string> {
+	if (config.translationMethod === 'openai') {
+		return await translateWithOpenAI(selection, config);
+	} else {
+		return await translateWithGoogle(selection, config.targetLanguage);
+	}
 }
 
-// 翻訳 (ひとまず 英語 -> 日本語に固定)
-async function Translate(selection) {
-	let targetLanguage = String('ja');
-	let fromLanguage = String('');
-	let translateStr = googleTranslate(selection, targetLanguage, fromLanguage);
-	let cfg = vscode.workspace.getConfiguration();
-	let proxy = String(cfg.get("http.proxy"));
+// ================================================================================
+// systemロールサポート事前チェック
+// ================================================================================
 
-	const options = {
-		uri: translateStr,
-		proxy: proxy,
-		json: true
-	};
+/**
+ * ユーザー設定モデルのsystemロールサポートを事前チェック
+ * activate()時にバックグラウンドで実行される
+ */
+async function preloadSystemRoleSupport(): Promise<void> {
+	const config = getTranslationConfig();
+	
+	if (config.translationMethod !== 'openai' || !config.openaiApiKey) {
+		console.log('[DEBUG] Skipping preload: OpenAI not configured');
+		return;
+	}
 
-	// console.log(request(translateStr));
-	return request(options).then(async res => {
-		// console.log(res);
-		let result = [];
-		let dict = [];
-		let translateResult: String;
-		let dictResult: String;
-		// let obj = JSON.parse(res);
+	// ユーザー設定のモデルのみをチェック（不要なAPI呼び出しを削減）
+	const modelToCheck = config.openaiModel;
 
-		res.sentences.forEach(function (v) {
-				result.push(v.trans);
-		})
+	console.log('[INFO] Preloading system role support for model:', modelToCheck);
 
-		translateResult = result.join('');
-		
-		// 返ってきた JSON の中に dict があった場合
-		if(res.dict){
-			res.dict.forEach(function (d) {
-				dict.push(d.terms);
-			});
-			translateResult += '\n' + '  * ' + dict.join('');
-		}
-
-		// console.log(result);
-		// console.log(dict);
-		// console.log(translateResult);
-		
-		return translateResult.toString();
-	});
-}
-
-
-// 
-// Google 翻訳に渡す URL を生成
-// markdown header (###) で始まると、翻訳が行われない。選択を encodeURIComponent() で encode して渡すこと
-//
-function googleTranslate(selection, targetLanguage, fromLanguage) {
-	console.log(selection);
-	return 'https://translate.google.com/translate_a/single?client=gtx&sl=' + (fromLanguage || 'auto') + '&tl=' + (targetLanguage || 'auto') + '&dt=t&dt=bd&ie=UTF-8&oe=UTF-8&dj=1&source=icon&q=' + encodeURIComponent(selection);
+	try {
+		await preloadSystemRoleSupportForModel(
+			config.openaiApiKey,
+			config.openaiBaseUrl,
+			modelToCheck
+		);
+		console.log('[INFO] System role support preload completed for:', modelToCheck);
+	} catch (error: unknown) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		console.error('[ERROR] System role support preload failed:', errorMessage);
+	}
 }
