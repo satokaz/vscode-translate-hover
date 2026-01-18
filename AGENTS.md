@@ -9,6 +9,10 @@
 ### 主な機能
 
 - テキスト選択時の自動翻訳ホバー表示
+- **自動言語検出**: ソーステキストの言語を自動判定して翻訳方向を切り替え
+  - auto-ja モード: 日本語→英語、その他→日本語
+  - auto-en モード: 英語→日本語、その他→英語
+  - auto-zh モード: 中国語→英語、その他→中国語
 - Google翻訳とOpenAI APIの切り替え可能な翻訳エンジン
 - 翻訳結果のキャッシュ機能
 - 翻訳結果のペーストコマンド
@@ -41,7 +45,8 @@ vscode-translate-hover/
 │   ├── constants.ts           # 定数定義
 │   ├── config.ts              # 設定管理
 │   ├── utils/
-│   │   └── format.ts          # フォーマットユーティリティ
+│   │   ├── format.ts          # フォーマットユーティリティ
+│   │   └── languageDetector.ts # 言語検出ユーティリティ
 │   ├── providers/
 │   │   ├── google.ts          # Google翻訳プロバイダー
 │   │   └── openai.ts          # OpenAI翻訳プロバイダー
@@ -146,6 +151,22 @@ import { formatTranslationResult } from './utils/format';
 **関数**:
 - `formatTranslationResult(text)`: 全角括弧を半角に変換
 
+### `src/utils/languageDetector.ts`
+
+**役割**: テキストの言語検出と翻訳方向自動決定
+
+**関数**:
+- `isJapanese(text)`: 日本語判定（ひらがな、カタカナ、漢字の割合30%以上）
+- `isChinese(text)`: 中国語判定（日本語特有文字を除外、漢字30%以上）
+- `isKorean(text)`: 韓国語判定（ハングル30%以上）
+- `detectLanguage(text)`: 言語コードを返す（ja, zh, ko, en）
+- `resolveTargetLanguage(text, autoConfig, pairs)`: auto-XX設定から適切なターゲット言語を決定
+
+**特徴**:
+- 文字種別ベースの言語検出
+- 30%以上の文字割合で判定
+- auto-ja, auto-en, auto-zh などの設定に対応
+
 ### `src/providers/google.ts`
 
 **役割**: Google翻訳APIとの統合
@@ -210,13 +231,18 @@ import { formatTranslationResult } from './utils/format';
 ```json
 {
   "translateHover.translationMethod": "google" | "openai",
-  "translateHover.targetLanguage": "ja" | "en" | "zh" | etc.,
+  "translateHover.targetLanguage": "auto-ja" | "auto-en" | "auto-zh" | "ja" | "en" | "zh" | etc.,
   "translateHover.openaiApiKey": "sk-...",
   "translateHover.openaiBaseUrl": "https://custom-endpoint.com/v1",
   "translateHover.openaiModel": "gpt-4o-mini" | "o1-preview" | etc.,
   "translateHover.openaiReasoningEffort": "" | "low" | "medium" | "high"
 }
 ```
+
+**自動言語検出モード**:
+- `auto-ja`: 日本語→英語、その他の言語→日本語
+- `auto-en`: 英語→日本語、その他の言語→英語
+- `auto-zh`: 中国語→英語、その他の言語→中国語
 
 ## 開発ワークフロー
 

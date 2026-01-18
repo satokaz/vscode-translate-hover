@@ -13,6 +13,20 @@ export const DEFAULTS = {
 	TEMPERATURE: 0.3
 } as const;
 
+/**
+ * 自動言語検出のプレフィックス
+ */
+export const AUTO_DETECT_PREFIX = 'auto-';
+
+/**
+ * 自動検出設定の言語ペア
+ */
+export const AUTO_DETECT_PAIRS: { [key: string]: { primary: string, secondary: string } } = {
+	'auto-ja': { primary: 'ja', secondary: 'en' },  // 日本語以外→日本語、日本語→英語
+	'auto-en': { primary: 'en', secondary: 'ja' },  // 英語以外→英語、英語→日本語
+	'auto-zh': { primary: 'zh', secondary: 'en' },  // 中国語以外→中国語、中国語→英語
+};
+
 export const LANGUAGE_NAMES: { [key: string]: string } = {
 	'ja': '日本語',
 	'en': '英語',

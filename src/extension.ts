@@ -7,6 +7,8 @@ import { createHover } from './ui/hover';
 import { translateWithGoogle } from './providers/google';
 import { translateWithOpenAI, preloadSystemRoleSupportForModel } from './providers/openai';
 import { formatTranslationResult } from './utils/format';
+import { resolveTargetLanguage } from './utils/languageDetector';
+import { AUTO_DETECT_PREFIX, AUTO_DETECT_PAIRS } from './constants';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Congratulations, your extension "vscode-translate-hover" is now active!');
@@ -125,10 +127,17 @@ export function deactivate() {
 }
 
 async function translateText(selection: string, config: ReturnType<typeof getTranslationConfig>): Promise<string> {
+	// 自動言語検出が有効な場合、適切なターゲット言語を決定
+	let targetLanguage = config.targetLanguage;
+	if (config.targetLanguage.startsWith(AUTO_DETECT_PREFIX)) {
+		targetLanguage = resolveTargetLanguage(selection, config.targetLanguage, AUTO_DETECT_PAIRS);
+		console.log('[DEBUG] Auto-detect mode: detected target language:', targetLanguage);
+	}
+	
 	if (config.translationMethod === 'openai') {
-		return await translateWithOpenAI(selection, config);
+		return await translateWithOpenAI(selection, config, targetLanguage);
 	} else {
-		return await translateWithGoogle(selection, config.targetLanguage);
+		return await translateWithGoogle(selection, targetLanguage);
 	}
 }
 

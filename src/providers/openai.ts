@@ -112,9 +112,12 @@ async function checkSystemRoleSupport(
 
 /**
  * OpenAI APIを使った翻訳
+ * @param selection 翻訳するテキスト
+ * @param config 設定
+ * @param targetLanguage ターゲット言語（auto-detect時に解決済みの言語コード）
  */
-export async function translateWithOpenAI(selection: string, config: TranslationConfig): Promise<string> {
-	const { openaiApiKey, openaiBaseUrl, openaiModel, targetLanguage } = config;
+export async function translateWithOpenAI(selection: string, config: TranslationConfig, targetLanguage: string): Promise<string> {
+	const { openaiApiKey, openaiBaseUrl, openaiModel } = config;
 
 	if (!openaiApiKey || openaiApiKey.trim() === '') {
 		return 'OpenAI API key is not set. Please set it in settings.';

@@ -6,6 +6,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 
 ### Added
+- **Automatic Language Detection**: Automatically detects source text language and switches translation direction
+  - New `auto-ja` mode: Japanese → English, other languages → Japanese
+  - New `auto-en` mode: English → Japanese, other languages → English
+  - New `auto-zh` mode: Chinese → English, other languages → Chinese
+  - Language detection based on character composition (Hiragana, Katakana, Kanji, Hangul, etc.)
+  - Configurable via `translateHover.targetLanguage` setting
+  - Works with both Google Translate and OpenAI API
 - **Dynamic System Role Support Detection**: Automatically detects whether an OpenAI model supports the `system` role
   - Performs lightweight check (1 token) on first use of each model
   - Caches results per model and base URL combination
