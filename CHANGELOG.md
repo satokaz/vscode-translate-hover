@@ -3,6 +3,36 @@ All notable changes to the "vscode-translate-hover" extension will be documented
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+### Added
+- **Dynamic System Role Support Detection**: Automatically detects whether an OpenAI model supports the `system` role
+  - Performs lightweight check (1 token) on first use of each model
+  - Caches results per model and base URL combination
+  - Preloads user-configured model on activation (optimized from checking all models)
+  - Automatically adapts message structure for o1-series models (no system role, temperature, or max_tokens)
+  - Works seamlessly with custom base URLs (LiteLLM Proxy, Azure OpenAI, etc.)
+  - **Improved fallback strategy**: Check failures result in `null` (undetermined) state, triggering recheck on next use
+- **Model Name Display in Hover**: Shows the OpenAI model name in hover tooltip for AI translations
+  - Displayed as decorative text below the translation method header
+  - Only shown for OpenAI translations (not Google Translate)
+  - **XSS protection**: Model name is properly escaped
+- **Comprehensive Debug Logging**: Added detailed debug messages for cache operations
+  - Controllable via `DEBUG_LOG_ENABLED` flag
+  - Cache key generation
+  - Cache hit/miss status
+  - System role support check results
+  - Preload summary statistics
+- **New Type Definitions**: Added `OpenAIClientConfig` and `SystemRoleCheckResult` interfaces for better type safety
+
+### Changed
+- OpenAI translation now automatically handles models without system role support (e.g., o1-series)
+- Translation cache now stores model name for better tracking
+- **Improved type safety**: Replaced `any` types with proper OpenAI SDK types (`ChatCompletionMessageParam`, `ChatCompletionCreateParamsNonStreaming`)
+- **Optimized preload**: Now only checks user-configured model instead of all common models (reduces API calls)
+- `SystemRoleSupportCache.supportsSystemRole` now accepts `boolean | null` to represent undetermined state
+- Error handling now uses `unknown` type with proper `instanceof Error` checks
+
 ## [0.1.0] - 2026-01-16
 
 ### Changed
