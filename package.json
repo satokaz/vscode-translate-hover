@@ -2,7 +2,7 @@
   "name": "vscode-translate-hover",
   "displayName": "vscode-translate-hover",
   "description": "Translate selected text using Google Translate and display the result in a hover",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "satokaz",
   "engines": {
     "vscode": "^1.85.0"
