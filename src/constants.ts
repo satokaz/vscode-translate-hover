@@ -11,7 +11,8 @@ export const DEFAULTS = {
 	LANGUAGE_DETECTION_METHOD: 'regex',
 	TIMEOUT: 10000,
 	MAX_TOKENS: 1000,
-	TEMPERATURE: 0.3
+	TEMPERATURE: 0.3,
+	DEBOUNCE_DELAY: 300 // 連続選択時の待機時間（ミリ秒）
 } as const;
 
 /**

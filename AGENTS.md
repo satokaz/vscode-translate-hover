@@ -9,6 +9,7 @@
 ### 主な機能
 
 - テキスト選択時の自動翻訳ホバー表示
+- **デバウンス処理**: 連続選択時のAPI呼び出しを削減（300ms遅延）
 - **自動言語検出**: ソーステキストの言語を自動判定して翻訳方向を切り替え
   - auto-ja モード: 日本語→英語、その他→日本語
   - auto-en モード: 英語→日本語、その他→英語
@@ -102,10 +103,21 @@ vscode-translate-hover/
   - ホバープロバイダーの登録
   - コマンドの登録
   - キャッシュの初期化
+  - **デバウンスタイマーの管理**: モジュールスコープでタイマーを保持
   - **system roleサポートの事前チェック**: 主要モデルをバックグラウンドで事前チェック
-- `deactivate()`: クリーンアップ処理
+- `deactivate()`: クリーンアップ処理（タイマーのクリア、ロガーの解放）
 - `translateText(selection, config)`: 翻訳方法のルーティング
 - `preloadSystemRoleSupport()`: ユーザー設定モデルの事前チェック（最適化: 全モデルではなく設定モデルのみ）
+
+**デバウンス処理の実装**:
+- モジュールレベル変数: `debounceTimer`, `pendingSelection`, `lastSelectionTime`
+- 新しい選択を検出するとタイマーをリセット
+- 300ms（`DEFAULTS.DEBOUNCE_DELAY`）の待機後に翻訳を実行
+- **非同期デバウンス**: `provideHover`内で`Promise`ベースの遅延を使用し、翻訳完了まで待機
+- **翻訳中の表示**: VS Codeが自動的に「読み込んでいます」を表示(カスタムメッセージ不要)
+- タイマー待機中に選択が変更された場合は処理をキャンセル
+- キャッシュヒット時は即座に表示（デバウンスをスキップ）
+- `deactivate()`時にタイマーをクリア
 
 **依存関係**:
 ```typescript
@@ -135,7 +147,8 @@ import { formatTranslationResult } from './utils/format';
 
 **定義される定数**:
 - `CONFIG_SECTION`: VS Code設定のセクション名
-- `DEFAULTS`: デフォルト値（タイムアウト、モデル名等）
+- `DEFAULTS`: デフォルト値（タイムアウト、モデル名、**デバウンス時間**等）
+
 - `LANGUAGE_NAMES`: 言語コードと言語名のマッピング
 
 ### `src/config.ts`
@@ -146,6 +159,31 @@ import { formatTranslationResult } from './utils/format';
 - `getTranslationConfig()`: 全設定値を構造化して返す
 
 ### `src/utils/format.ts`
+
+**役割**: テキストフォーマット処理
+
+**関数**:
+- `formatTranslationResult(text)`: 全角括弧を半角に変換
+
+### `src/utils/logger.ts`
+
+**役割**: 専用ログ出力チャネル管理
+
+**関数**:
+- `initializeLogger(channelName)`: VS Code OutputChannelを作成（singleton）
+- `disposeLogger()`: リソース解放
+- `setDebugEnabled(enabled)`: デバッグログの有効/無効切り替え
+- `debug(...args)`: デバッグレベルログ出力（設定で制御）
+- `info(...args)`: 情報レベルログ出力
+- `error(...args)`: エラーレベルログ出力
+- `show()`: 出力パネルを表示
+- `clear()`: ログをクリア
+
+**特徴**:
+- タイムスタンプ付きログ（ISO形式）
+- オブジェクトの自動JSON化
+- シングルトンパターンでOutputChannel管理
+- デバッグログはユーザー設定で制御可能
 
 **役割**: テキストフォーマット処理
 
@@ -304,14 +342,14 @@ F5キーでデバッグモードを起動（.vscode/launch.jsonに設定済み�
 
 - タイムアウト: 10秒
 - エラー時の戻り値: `'Translation failed'`
-- エラーログ出力: `console.error('[ERROR] Google translation failed:', error)`
+- エラーログ出力: `logger.error('Google translation failed:', error)`
 
 ### OpenAI翻訳
 
 - APIキー未設定時: 設定促進メッセージを返す
 - エラー時: エラーメッセージを含む文字列を返す
 - **System Roleエラー**: 自動的にuser roleのみでリトライ（キャッシュに記録）
-- エラーログ出力: `console.error('[ERROR] OpenAI translation failed:', error)`
+- エラーログ出力: `logger.error('OpenAI translation failed:', error)`
 
 ### System Roleサポートチェック
 
@@ -322,12 +360,31 @@ F5キーでデバッグモードを起動（.vscode/launch.jsonに設定済み�
 
 ## デバッグとロギング
 
-### デバッグログ
+### ログ出力システム
 
-コンソールには以下のデバッグ情報が出力されます：
+**専用出力チャネル**（`src/utils/logger.ts`）:
+- VS Codeの出力パネルに専用チャネル "Translate Hover" を作成
+- タイムスタンプ付きログ出力
+- ログレベル: DEBUG（オプション）、INFO、ERROR
+- デバッグログは設定で有効/無効を切り替え可能
+
+**ログ表示コマンド**:
+- コマンド: `extension.showLogs`
+- UI: "ログ出力チャネルを表示"
+- ログパネルを開いて出力を確認
+
+**設定項目**:
+- `translateHover.enableDebugLogging`: デバッグログの有効/無効（デフォルト: false）
+- 設定変更は即座に反映（再起動不要）
+
+### ログ出力内容
+
+#### 拡張機能ライフサイクル（extension.ts）
+- `[INFO] Extension "vscode-translate-hover" is now active!` - 拡張機能起動
+- `[INFO] Debug logging enabled/disabled` - デバッグログ切り替え
 
 #### 設定ロード（config.ts）
-- `[DEBUG] Config loaded: {translationMethod, openaiModel, hasApiKey}` - 設定読み込み時のログ
+- `[DEBUG] Config loaded: {translationMethod, openaiModel, hasApiKey, enableDebugLogging}` - 設定読み込み時のログ
 
 #### キャッシュ操作（extension.ts）
 - `[DEBUG] Selected text: "<text>"` - 選択されたテキスト
@@ -339,7 +396,6 @@ F5キーでデバッグモードを起動（.vscode/launch.jsonに設定済み�
 
 #### モデル名表示（hover.ts）
 - `[DEBUG] Displaying model name in hover: <modelName>` - モデル名表示
-- `[DEBUG] OpenAI method but no modelName provided` - モデル名なし（診断用）
 
 #### System Roleサポート（openai.ts）
 - `[DEBUG] Checking cache for key: <modelName>::<baseUrl>` - キャッシュ検索
@@ -350,24 +406,17 @@ F5キーでデバッグモードを起動（.vscode/launch.jsonに設定済み�
 - `[INFO] Preloading system role support for model: <modelName>` - 事前チェック開始
 - `[INFO] System role support preload completed for: <modelName>` - 事前チェック完了
 
-### デバッグログ制御
-
-`DEBUG_LOG_ENABLED` フラグ（openai.ts内）でデバッグログの出力を制御：
-```typescript
-const DEBUG_LOG_ENABLED = true;  // false にするとデバッグログ無効化
-```
+#### 言語検出（extension.ts, openai.ts）
+- `[DEBUG] LLM detected language: <lang>` - LLMベース検出結果
+- `[DEBUG] Regex detected language: <lang>` - 正規表現ベース検出結果
+- `[DEBUG] Auto-detect mode: target language: <lang>` - 自動検出による翻訳方向
 
 ### エラーログ
 
 - `[ERROR] Google translation failed:` - Google翻訳エラー
 - `[ERROR] OpenAI translation failed:` - OpenAI翻訳エラー
 - `[ERROR] System role support check failed:` - サポートチェックエラー
-
-### ログレベル
-
-- 通常動作: エラーログのみ（console.error）
-- デバッグ情報: console.logで詳細を出力
-- VS Code開発者ツール（Help > Toggle Developer Tools）で確認可能
+- `[ERROR] LLM language detection failed:` - LLM言語検出エラー
 
 
 
@@ -444,10 +493,27 @@ const DEBUG_LOG_ENABLED = true;  // false にするとデバッグログ無効�
 2. `src/types.ts` の `TranslationConfig` に型を追加
 3. `src/config.ts` の `getTranslationConfig()` で値を取得
 4. 該当する関数で設定値を使用
+5. 設定変更監視が必要な場合は `extension.ts` で `onDidChangeConfiguration` を使用
+
+### コマンドの追加
+
+1. `package.json` の `contributes.commands` に追加
+2. `extension.ts` で `vscode.commands.registerCommand()` を使用して実装
+3. `context.subscriptions.push()` でコマンドを登録
+
+### ログ出力の追加
+
+1. `import * as logger from './utils/logger'` でロガーをインポート
+2. デバッグ情報: `logger.debug(...)`（設定で制御可能）
+3. 情報ログ: `logger.info(...)`
+4. エラーログ: `logger.error(...)`
+5. **console.logやconsole.errorは使用しない**（ユーザーから見えない）
 
 ### UIの変更
 
 1. `src/ui/hover.ts` の `createHover()` を編集
+2. MarkdownString の仕様に従う
+3. コマンドリンクは `command:extension.commandName` 形式
 2. MarkdownString の仕様に従う
 3. コマンドリンクは `command:extension.commandName` 形式
 
@@ -456,14 +522,14 @@ const DEBUG_LOG_ENABLED = true;  // false にするとデバッグログ無効�
 ### ホバーが表示されない
 
 - `activationEvents: ["onStartupFinished"]` が設定されているか確認
-- コンソールログでデバッグ情報を確認
+- ログ出力チャネルでデバッグ情報を確認（コマンド: "ログ出力チャネルを表示"）
 
 ### 翻訳が失敗する
 
 - APIキーが正しく設定されているか確認
 - ネットワーク接続を確認
 - プロキシ設定を確認（Google翻訳）
-- コンソールログでエラー詳細を確認
+- ログ出力チャネルでエラー詳細を確認
 
 ### コンパイルエラー
 
@@ -475,15 +541,15 @@ const DEBUG_LOG_ENABLED = true;  // false にするとデバッグログ無効�
 
 ### 優先度: 高
 
-1. **デバウンス処理**: 連続選択時のAPI呼び出し削減
+1. ~~**デバウンス処理**: 連続選択時のAPI呼び出し削減~~ ✅ 実装済み（v0.2.0）
 2. **LRUキャッシュ**: 複数の翻訳結果を保持
-3. **出力チャネル**: 専用のログ出力チャネル
+3. ~~**出力チャネル**: 専用のログ出力チャネル~~ ✅ 実装済み（v0.2.0）
 4. **エラーハンドリング強化**: リトライロジック、カスタムエラークラス
 
 ### 優先度: 中
 
 1. **テストの追加**: ユニットテスト、統合テスト
-2. **設定変更の監視**: 再起動不要で設定反映
+2. ~~**設定変更の監視**: 再起動不要で設定反映~~ ✅ 実装済み（enableDebugLogging）
 3. **翻訳履歴機能**: サイドバーパネルで履歴表示
 4. **バッチ翻訳**: 複数選択箇所の一括翻訳
 
@@ -517,5 +583,5 @@ const DEBUG_LOG_ENABLED = true;  // false にするとデバッグログ無効�
 
 ---
 
-**最終更新**: 2026-01-16
-**バージョン**: 0.1.0
+**最終更新**: 2025-01-16
+**バージョン**: 0.2.0

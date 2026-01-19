@@ -5,6 +5,7 @@
 import * as vscode from 'vscode';
 import axios, { AxiosProxyConfig } from 'axios';
 import { DEFAULTS } from '../constants';
+import * as logger from '../utils/logger';
 
 /**
  * Google翻訳を使った翻訳

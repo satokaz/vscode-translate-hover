@@ -6,18 +6,7 @@ import OpenAI from 'openai';
 import type { ChatCompletionMessageParam, ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions';
 import { TranslationConfig, SystemRoleSupportCache, OpenAIClientConfig, SystemRoleCheckResult } from '../types';
 import { DEFAULTS, LANGUAGE_NAMES } from '../constants';
-
-// デバッグログの有効/無効（将来的には設定から取得）
-const DEBUG_LOG_ENABLED = true;
-
-/**
- * デバッグログを出力（DEBUG_LOG_ENABLED が true の場合のみ）
- */
-function debugLog(...args: unknown[]): void {
-	if (DEBUG_LOG_ENABLED) {
-		console.log('[DEBUG]', ...args);
-	}
-}
+import * as logger from '../utils/logger';
 
 // ================================================================================
 // systemロールサポートキャッシュ
@@ -34,7 +23,7 @@ const systemRoleSupportCache = new Map<string, SystemRoleSupportCache>();
 function getCacheKey(modelName: string, baseUrl: string): string {
 	const normalizedBaseUrl = baseUrl.trim() || 'default';
 	const key = `${modelName}::${normalizedBaseUrl}`;
-	debugLog('Generated cache key:', key);
+	logger.debug('Generated cache key:', key);
 	return key;
 }
 
@@ -81,7 +70,7 @@ async function checkSystemRoleSupport(
 		});
 
 		clearTimeout(timeoutId);
-		debugLog('System role check passed for model:', modelName);
+		logger.debug('System role check passed for model:', modelName);
 		
 		return {
 			supportsSystemRole: true,
@@ -91,7 +80,7 @@ async function checkSystemRoleSupport(
 		clearTimeout(timeoutId);
 
 		if (isSystemRoleError(error)) {
-			debugLog('System role not supported for model:', modelName);
+			logger.debug('System role not supported for model:', modelName);
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			return {
 				supportsSystemRole: false,
@@ -101,7 +90,7 @@ async function checkSystemRoleSupport(
 		}
 
 		// その他のエラー（ネットワークエラー等）は再スロー
-		console.error('[ERROR] System role check failed:', error);
+		logger.error('System role check failed:', error);
 		throw error;
 	}
 }
@@ -118,7 +107,7 @@ async function checkSystemRoleSupport(
  */
 export async function detectLanguageWithLLM(text: string, openai: OpenAI, model: string): Promise<string> {
 	try {
-		debugLog('Detecting language with LLM for text:', text.substring(0, 50) + '...');
+		logger.debug('Detecting language with LLM for text:', text.substring(0, 50) + '...');
 		
 		const response = await openai.chat.completions.create({
 			model: model,
@@ -133,11 +122,11 @@ export async function detectLanguageWithLLM(text: string, openai: OpenAI, model:
 		});
 
 		const detectedLang = response.choices[0]?.message?.content?.trim().toLowerCase() || 'en';
-		debugLog('LLM detected language:', detectedLang);
+		logger.debug('LLM detected language:', detectedLang);
 		
 		return detectedLang;
 	} catch (error: unknown) {
-		console.error('[ERROR] LLM language detection failed:', error);
+		logger.error('LLM language detection failed:', error);
 		// フォールバック: 英語と仮定
 		return 'en';
 	}
@@ -166,7 +155,7 @@ export async function translateWithOpenAI(selection: string, config: Translation
 		// カスタムベースURL
 		if (openaiBaseUrl && openaiBaseUrl.trim() !== '') {
 			openaiConfig.baseURL = openaiBaseUrl;
-			debugLog('Using custom OpenAI base URL:', openaiBaseUrl);
+			logger.debug('Using custom OpenAI base URL:', openaiBaseUrl);
 		}
 
 		const openai = new OpenAI(openaiConfig);
@@ -177,7 +166,7 @@ export async function translateWithOpenAI(selection: string, config: Translation
 		let cached = systemRoleSupportCache.get(cacheKey);
 
 		if (cached && cached.supportsSystemRole !== null) {
-			debugLog('Cache hit for model:', openaiModel, '| Support:', cached.supportsSystemRole, '| CheckedAt:', new Date(cached.checkedAt).toISOString());
+			logger.debug('Cache hit for model:', openaiModel, '| Support:', cached.supportsSystemRole, '| CheckedAt:', new Date(cached.checkedAt).toISOString());
 		}
 
 		// キャッシュがない、または未確定(null)の場合はチェック実行
@@ -194,14 +183,14 @@ export async function translateWithOpenAI(selection: string, config: Translation
 					checkedAt: checkResult.checkedAt
 				};
 				systemRoleSupportCache.set(cacheKey, cached);
-				debugLog('Cached system role support:', JSON.stringify({
+				logger.debug('Cached system role support:', JSON.stringify({
 					key: cacheKey,
 					supportsSystemRole: cached.supportsSystemRole,
 					checkedAt: new Date(cached.checkedAt).toISOString()
 				}));
 			} catch (error: unknown) {
 				// チェック失敗時はキャッシュに「未確定」として記録（次回再チェック）
-				console.error('[ERROR] System role check failed, will retry next time:', error);
+			logger.error('System role check failed, will retry next time:', error);
 				cached = {
 					modelName: openaiModel,
 					baseUrl: openaiBaseUrl || '',
@@ -209,7 +198,7 @@ export async function translateWithOpenAI(selection: string, config: Translation
 					checkedAt: Date.now()
 				};
 				// 未確定の場合はキャッシュしない（次回再チェックのため）
-				debugLog('System role support check failed, not caching');
+				logger.debug('System role support check failed, not caching');
 			}
 		}
 
@@ -231,14 +220,14 @@ export async function translateWithOpenAI(selection: string, config: Translation
 				role: 'user',
 				content: selection
 			});
-			debugLog('Using system role for translation');
+			logger.debug('Using system role for translation');
 		} else {
 			// systemロールをサポートしない場合（o1シリーズ等）または未確定の場合
 			messages.push({
 				role: 'user',
 				content: `次のテキストを${targetLangName}に翻訳してください。翻訳結果のみを出力し、説明は不要です。\n\n${selection}`
 			});
-			debugLog('Not using system role (model limitation or unknown)');
+			logger.debug('Not using system role (model limitation or unknown)');
 		}
 
 		// 完了パラメータの構築（型安全）
@@ -256,17 +245,17 @@ export async function translateWithOpenAI(selection: string, config: Translation
 		// reasoning_effort パラメータ (o1シリーズのモデル用)
 		if (config.reasoningEffort && config.reasoningEffort.trim() !== '') {
 			(completionParams as any).reasoning_effort = config.reasoningEffort;
-			debugLog('Using reasoning_effort:', config.reasoningEffort);
+			logger.debug('Using reasoning_effort:', config.reasoningEffort);
 		}
 
 		const completion = await openai.chat.completions.create(completionParams);
 
 		const translatedText = completion.choices[0]?.message?.content || 'Translation failed';
-		debugLog('OpenAI translation completed');
+		logger.debug('OpenAI translation completed');
 		
 		return translatedText;
 	} catch (error: unknown) {
-		console.error('[ERROR] OpenAI translation failed:', error);
+		logger.error('OpenAI translation failed:', error);
 		
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		
@@ -305,7 +294,7 @@ export async function preloadSystemRoleSupportForModel(
 	
 	// 既にキャッシュがあり、確定済み（nullでない）の場合はスキップ
 	if (existingCache && existingCache.supportsSystemRole !== null) {
-		debugLog('Model already checked:', modelName);
+		logger.debug('Model already checked:', modelName);
 		return;
 	}
 
@@ -326,7 +315,7 @@ export async function preloadSystemRoleSupportForModel(
 		});
 		
 		console.log('[INFO] Preloaded system role support for', modelName, ':', checkResult.supportsSystemRole);
-		debugLog('Preload cache entry:', JSON.stringify({
+		logger.debug('Preload cache entry:', JSON.stringify({
 			key: cacheKey,
 			modelName,
 			baseUrl: baseUrl || 'default',
@@ -335,6 +324,6 @@ export async function preloadSystemRoleSupportForModel(
 		}));
 	} catch (error: unknown) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		console.error('[ERROR] Preload check failed for', modelName, ':', errorMessage);
+			logger.error('Preload check failed for', modelName, ':', errorMessage);
 	}
 }

@@ -8,15 +8,39 @@ import { translateWithGoogle } from './providers/google';
 import { translateWithOpenAI, preloadSystemRoleSupportForModel, detectLanguageWithLLM } from './providers/openai';
 import { formatTranslationResult } from './utils/format';
 import { resolveTargetLanguage, detectLanguage } from './utils/languageDetector';
-import { AUTO_DETECT_PREFIX, AUTO_DETECT_PAIRS } from './constants';
+import { AUTO_DETECT_PREFIX, AUTO_DETECT_PAIRS, DEFAULTS } from './constants';
 import OpenAI from 'openai';
+import * as logger from './utils/logger';
+
+// デバウンス用グローバル変数
+let debounceTimer: NodeJS.Timeout | null = null;
+let pendingSelection: string | null = null;
+let lastSelectionTime: number = 0;
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Congratulations, your extension "vscode-translate-hover" is now active!');
+	// ログ出力チャネルを初期化
+	logger.initializeLogger('Translate Hover');
+	
+	// 設定からデバッグログの有効/無効を取得
+	const config = getTranslationConfig();
+	logger.setDebugEnabled(config.enableDebugLogging);
+	
+	logger.info('Extension "vscode-translate-hover" is now active!');
+	
+	// 設定変更を監視してデバッグログを動的に切り替え
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeConfiguration(e => {
+			if (e.affectsConfiguration('translateHover.enableDebugLogging')) {
+				const newConfig = getTranslationConfig();
+				logger.setDebugEnabled(newConfig.enableDebugLogging);
+				logger.info('Debug logging', newConfig.enableDebugLogging ? 'enabled' : 'disabled');
+			}
+		})
+	);
 
 	// systemロールサポートの事前チェック（バックグラウンド実行）
 	preloadSystemRoleSupport().catch(error => {
-		console.error('[ERROR] Preload system role check failed:', error);
+		logger.error('Preload system role check failed:', error);
 	});
 
 	let cache: TranslationCache = {
@@ -42,45 +66,85 @@ export function activate(context: vscode.ExtensionContext) {
 			
 			// デバッグ: 選択されたテキストをログ出力
 			if (selection && selection !== "" && selection !== " ") {
-				console.log('[DEBUG] Selected text:', JSON.stringify(selection));
-				console.log('[DEBUG] Selection length:', selection.length);
+				logger.debug('Selected text:', JSON.stringify(selection));
+				logger.debug('Selection length:', selection.length);
+			}
+
+			// キャッシュヒット: 既存の翻訳結果を即座に表示
+			if (cache.result && selection === cache.selection) {
+				logger.debug('Using cached translation for selection');
+				const cHover = document.getText(document.getWordRangeAtPosition(position));
+				if (selection.indexOf(cHover) !== -1) {
+					return createHover(cache.result, true, cache.method, cache.modelName);
+				}
 			}
 
 			// 選択が空じゃないか? スペースだけじゃないか? 一つ前の内容と同一じゃないか?をチェック
 			if (selection !== "" && selection !== " " && selection !== cache.selection) {
-				console.log('[DEBUG] New selection detected, starting translation...');
-
-				if(selection === document.getText(editor.selection)){
-					const config = getTranslationConfig();
-					translate = await translateText(selection, config);
-					console.log('[DEBUG] Translation result:', translate);
-				} else {
-					console.log('[DEBUG] Selection mismatch');
-					return;
+				logger.debug('New selection detected');
+				
+				// 既存のデバウンスタイマーをキャンセル
+				if (debounceTimer) {
+					logger.debug('Cancelling previous debounce timer');
+					clearTimeout(debounceTimer);
+					debounceTimer = null;
 				}
-
+				
+				// 選択を保存
+				pendingSelection = selection;
+				const currentSelectionTime = Date.now();
+				lastSelectionTime = currentSelectionTime;
+				
+				// デバウンス待機のPromiseを作成
+				const debouncePromise = new Promise<void>((resolve) => {
+					debounceTimer = setTimeout(() => {
+						debounceTimer = null;
+						resolve();
+					}, DEFAULTS.DEBOUNCE_DELAY);
+				});
+				
+				logger.debug(`Debounce in progress, waiting ${DEFAULTS.DEBOUNCE_DELAY}ms...`);
+				
+				// デバウンス待機
+				await debouncePromise;
+				
+				// 待機中に選択が変更されていないかチェック
+				if (currentSelectionTime !== lastSelectionTime) {
+					logger.debug('Selection changed during debounce, cancelling');
+					return undefined;
+				}
+				
+				const selectionToTranslate = pendingSelection;
+				
+				if (!selectionToTranslate || selectionToTranslate !== document.getText(editor.selection)) {
+					logger.debug('Selection mismatch after debounce');
+					pendingSelection = null;
+					return undefined;
+				}
+				
+				logger.debug('Debounce timeout reached, starting translation...');
+				
+				const config = getTranslationConfig();
+				translate = await translateText(selectionToTranslate, config);
+				logger.debug('Translation result:', translate);
+				
 				const currentConfig = getTranslationConfig();
 				cache = {
-					selection: selection,
+					selection: selectionToTranslate,
 					result: translate,
 					method: currentConfig.translationMethod,
 					modelName: currentConfig.translationMethod === 'openai' ? currentConfig.openaiModel : undefined
 				};
 				
-				console.log('[DEBUG] Cache updated:', JSON.stringify({
+				logger.debug('Cache updated:', JSON.stringify({
 					method: cache.method,
 					modelName: cache.modelName,
 					hasResult: !!cache.result
 				}));
 				
+				pendingSelection = null;
+				
 				return createHover(translate, false, cache.method, cache.modelName);
-			} else {
-				// マウスが移動した場合は、翻訳結果の hover 表示を辞める
-				console.log('[DEBUG] Using cached translation for selection');
-				const cHover = document.getText(document.getWordRangeAtPosition(position));
-				if (selection.indexOf(cHover) !== -1) {
-				return createHover(cache.result, true, cache.method, cache.modelName);
-				}
 			}
 		}
 	});
@@ -120,11 +184,24 @@ export function activate(context: vscode.ExtensionContext) {
 			// ペースト後に選択解除
 			editor.selection = new vscode.Selection(selection2.active, selection2.active);
 		}));
+
+	// ログ出力チャネルを表示するコマンド
+	context.subscriptions.push(vscode.commands.registerCommand('extension.showLogs', () => {
+		logger.show();
+	}));
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {
-
+	// デバウンスタイマーをクリア
+	if (debounceTimer) {
+		clearTimeout(debounceTimer);
+		debounceTimer = null;
+		logger.debug('Debounce timer cleared on deactivation');
+	}
+	
+	// ロガーをクリーンアップ
+	logger.disposeLogger();
 }
 
 async function translateText(selection: string, config: ReturnType<typeof getTranslationConfig>): Promise<string> {
@@ -141,19 +218,19 @@ async function translateText(selection: string, config: ReturnType<typeof getTra
 					...(config.openaiBaseUrl ? { baseURL: config.openaiBaseUrl } : {})
 				});
 				detectedLang = await detectLanguageWithLLM(selection, openai, config.openaiModel);
-				console.log('[DEBUG] LLM detected language:', detectedLang);
-			} catch (error) {
-				console.error('[ERROR] LLM language detection failed, falling back to regex:', error);
-				detectedLang = detectLanguage(selection);
-			}
+					logger.debug('LLM detected language:', detectedLang);
+				} catch (error) {
+					logger.error('LLM language detection failed, falling back to regex:', error);
+					detectedLang = detectLanguage(selection);
+				}
 		} else {
 			// 正規表現ベース検出（デフォルト、またはGoogle翻訳時）
 			detectedLang = detectLanguage(selection);
-			console.log('[DEBUG] Regex detected language:', detectedLang);
+			logger.debug('Regex detected language:', detectedLang);
 		}
 		
 		targetLanguage = resolveTargetLanguage(selection, config.targetLanguage, AUTO_DETECT_PAIRS, detectedLang);
-		console.log('[DEBUG] Auto-detect mode: target language:', targetLanguage);
+		logger.debug('Auto-detect mode: target language:', targetLanguage);
 	}
 	
 	if (config.translationMethod === 'openai') {
@@ -175,14 +252,14 @@ async function preloadSystemRoleSupport(): Promise<void> {
 	const config = getTranslationConfig();
 	
 	if (config.translationMethod !== 'openai' || !config.openaiApiKey) {
-		console.log('[DEBUG] Skipping preload: OpenAI not configured');
+		logger.debug('Skipping preload: OpenAI not configured');
 		return;
 	}
 
 	// ユーザー設定のモデルのみをチェック（不要なAPI呼び出しを削減）
 	const modelToCheck = config.openaiModel;
 
-	console.log('[INFO] Preloading system role support for model:', modelToCheck);
+	logger.info('Preloading system role support for model:', modelToCheck);
 
 	try {
 		await preloadSystemRoleSupportForModel(
@@ -190,9 +267,9 @@ async function preloadSystemRoleSupport(): Promise<void> {
 			config.openaiBaseUrl,
 			modelToCheck
 		);
-		console.log('[INFO] System role support preload completed for:', modelToCheck);
+		logger.info('System role support preload completed for:', modelToCheck);
 	} catch (error: unknown) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		console.error('[ERROR] System role support preload failed:', errorMessage);
+		logger.error('System role support preload failed:', errorMessage);
 	}
 }

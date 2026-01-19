@@ -23,6 +23,7 @@ export interface TranslationConfig {
 	openaiModel: string;
 	reasoningEffort?: string;
 	languageDetectionMethod: string;
+	enableDebugLogging: boolean;
 }
 
 /**

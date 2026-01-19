@@ -6,6 +6,24 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 
 ### Added
+- **Debounce Processing**: Reduces consecutive API calls during rapid text selection changes
+  - 300ms delay before triggering translation (configurable via `DEFAULTS.DEBOUNCE_DELAY`)
+  - Cancels pending translation if selection changes during delay
+  - Shows VS Code's built-in "Loading..." message during translation
+  - Cache hits bypass debounce for instant display
+- **Dedicated Logging System**: Professional output channel for debugging and diagnostics
+  - New `translateHover.enableDebugLogging` setting to control debug output
+  - Timestamped logs with ISO format
+  - Three log levels: DEBUG (optional), INFO, ERROR
+  - "Show Logs" command to view output panel
+  - Dynamic configuration monitoring (no restart required)
+  - Comprehensive logging across all components:
+    - Extension lifecycle events
+    - Configuration loading
+    - Translation operations and results
+    - Cache operations
+    - System role support detection
+    - Language detection (regex and LLM-based)
 - **Automatic Language Detection**: Automatically detects source text language and switches translation direction
   - New `auto-ja` mode: Japanese → English, other languages → Japanese
   - New `auto-en` mode: English → Japanese, other languages → English

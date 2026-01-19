@@ -80,6 +80,11 @@
           ],
           "description": "言語検出方法。LLMはOpenAI API使用時のみ有効（Google翻訳時は常にregex）"
         },
+        "translateHover.enableDebugLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "デバッグログを出力チャネルに表示する（トラブルシューティング用）"
+        },
         "translateHover.targetLanguage": {
           "type": "string",
           "default": "ja",
@@ -138,6 +143,18 @@
       }
     }
   },
+  "commands": [
+    {
+      "command": "extension.pasteTranslation",
+      "title": "Paste Translation",
+      "category": "Translate Hover"
+    },
+    {
+      "command": "extension.showLogs",
+      "title": "ログ出力チャネルを表示",
+      "category": "Translate Hover"
+    }
+  ],
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
