@@ -18,6 +18,8 @@ let pendingSelection: string | null = null;
 let lastSelectionTime: number = 0;
 let hoverRequestSeq = 0;
 
+const CACHE_MAX_ENTRIES = 30;
+
 export function activate(context: vscode.ExtensionContext) {
 	// ログ出力チャネルを初期化
 	logger.initializeLogger('Translate Hover');
@@ -44,12 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
 		logger.error('Preload system role check failed:', error);
 	});
 
-	let cache: TranslationCache = {
-		selection: ' ',
-		result: ' ',
-		method: '',
-		modelName: undefined
-	};
+	const translationCache = new Map<string, TranslationCache>();
 	
 	let translate: string | undefined;
 	
@@ -75,17 +72,28 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			try {
-				// キャッシュヒット: 既存の翻訳結果を即座に表示
-				if (cache.result && selection === cache.selection) {
+				const configForCache = getTranslationConfig();
+				const cacheKey = buildCacheKey(
+					selection,
+					configForCache.translationMethod,
+					configForCache.targetLanguage,
+					configForCache.translationMethod === 'openai' ? configForCache.openaiModel : undefined
+				);
+
+				const cached = translationCache.get(cacheKey);
+				if (cached) {
 					logger.debug('Using cached translation for selection');
 					const cHover = document.getText(document.getWordRangeAtPosition(position));
 					if (selection.indexOf(cHover) !== -1) {
-						return createHover(cache.result, true, cache.method, cache.modelName);
+						translationCache.delete(cacheKey);
+						translationCache.set(cacheKey, cached);
+						translate = cached.result;
+						return createHover(cached.result, true, cached.method, cached.modelName);
 					}
 				}
 
-			// 選択が空じゃないか? スペースだけじゃないか? 一つ前の内容と同一じゃないか?をチェック
-			if (selection !== "" && selection !== " " && selection !== cache.selection) {
+			// 選択が空じゃないか? スペースだけじゃないか? をチェック
+			if (selection !== "" && selection !== " ") {
 				logger.debug('New selection detected');
 				
 				// 既存のデバウンスタイマーをキャンセル
@@ -142,22 +150,30 @@ export function activate(context: vscode.ExtensionContext) {
 				logger.debug('Translation result:', translate);
 				
 				const currentConfig = getTranslationConfig();
-				cache = {
+				const entry: TranslationCache = {
 					selection: selectionToTranslate,
 					result: translate,
 					method: currentConfig.translationMethod,
+					targetLanguage: currentConfig.targetLanguage,
 					modelName: currentConfig.translationMethod === 'openai' ? currentConfig.openaiModel : undefined
 				};
+				const entryKey = buildCacheKey(
+					selectionToTranslate,
+					currentConfig.translationMethod,
+					currentConfig.targetLanguage,
+					entry.modelName
+				);
+				updateCache(translationCache, entryKey, entry);
 				
 				logger.debug('Cache updated:', JSON.stringify({
-					method: cache.method,
-					modelName: cache.modelName,
-					hasResult: !!cache.result
+					method: entry.method,
+					modelName: entry.modelName,
+					hasResult: !!entry.result
 				}));
 				
 				pendingSelection = null;
 				
-				return createHover(translate, false, cache.method, cache.modelName);
+				return createHover(translate, false, entry.method, entry.modelName);
 			}
 			} finally {
 				cancelSubscription.dispose();
@@ -245,6 +261,29 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		})
 	);
+}
+
+function buildCacheKey(
+	selection: string,
+	method: string,
+	targetLanguage: string,
+	modelName?: string
+): string {
+	const modelToken = modelName ?? '';
+	return `${method}::${targetLanguage}::${modelToken}::${selection}`;
+}
+
+function updateCache(cache: Map<string, TranslationCache>, key: string, entry: TranslationCache): void {
+	if (cache.has(key)) {
+		cache.delete(key);
+	}
+	cache.set(key, entry);
+	if (cache.size > CACHE_MAX_ENTRIES) {
+		const oldestKey = cache.keys().next().value;
+		if (oldestKey !== undefined) {
+			cache.delete(oldestKey);
+		}
+	}
 }
 
 function truncateForQuickPickLabel(text: string, max = 80): string {

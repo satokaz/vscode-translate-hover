@@ -107,9 +107,9 @@
 
 ### 4.2 キャッシュ
 
-- キャッシュは **最後の1件のみ**をメモリに保持
-  - キー: `selection`（選択文字列そのもの）
-  - 値: `{ result, method, modelName? }`
+- キャッシュは **最大30件**の LRU（最終参照順）をメモリに保持
+  - キー: `selection + method + targetLanguage + modelName`
+  - 値: `{ result, method, targetLanguage, modelName? }`
 - キャッシュヒット時はデバウンスをスキップし即時表示
 
 ### 4.3 デバウンス

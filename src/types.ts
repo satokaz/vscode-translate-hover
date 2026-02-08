@@ -9,6 +9,7 @@ export interface TranslationCache {
 	selection: string;
 	result: string;
 	method: string;
+	targetLanguage: string;
 	modelName?: string;
 }
 
