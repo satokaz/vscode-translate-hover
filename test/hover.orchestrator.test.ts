@@ -19,7 +19,7 @@ suite('HoverOrchestrator', () => {
         const orchestrator = new HoverOrchestrator({
             getConfig: () => ({ translationMethod: 'google', targetLanguage: 'en', openaiModel: '', openaiApiKey: '', openaiBaseUrl: '', reasoningEffort: '', languageDetectionMethod: 'regex', enableDebugLogging: false }),
             translateText: fakeTranslate as any,
-            createHover: (text: string, isCached: boolean) => ({ markdown: { content: text } } as any),
+            createHover: (args: any) => ({ markdown: { content: args.translatedText } } as any),
             logger: undefined
         });
 
@@ -58,7 +58,7 @@ suite('HoverOrchestrator', () => {
         const orchestrator = new HoverOrchestrator({
             getConfig: () => ({ translationMethod: 'google', targetLanguage: 'en', openaiModel: '', openaiApiKey: '', openaiBaseUrl: '', reasoningEffort: '', languageDetectionMethod: 'regex', enableDebugLogging: false }),
             translateText: fakeTranslate as any,
-            createHover: (text: string, isCached: boolean) => ({ markdown: { content: text } } as any),
+            createHover: (args: any) => ({ markdown: { content: args.translatedText } } as any),
             logger: undefined
         });
 

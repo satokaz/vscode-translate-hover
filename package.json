@@ -22,6 +22,11 @@
         "title": "翻訳結果をペースト"
       },
       {
+        "command": "extension.copyTranslation",
+        "title": "翻訳結果をコピー",
+        "category": "Translate Hover"
+      },
+      {
         "command": "extension.translateClipboardQuickPick",
         "title": "クリップボードを翻訳（QuickPick）",
         "category": "Translate Hover"

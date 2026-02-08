@@ -10,7 +10,7 @@ export type GetConfigFn = () => ReturnType<typeof import('../config').getTransla
 export interface HoverOrchestratorOptions {
 	getConfig: GetConfigFn;
 	translateText: TranslateFn;
-	createHover: (text: string, isCached: boolean, method: string, modelName?: string) => vscode.Hover;
+	createHover: (args: { originalText: string; translatedText: string; isCached: boolean; method: string; modelName?: string }) => vscode.Hover;
 	logger?: typeof logger;
 }
 
@@ -20,12 +20,16 @@ export class HoverOrchestrator {
 	private lastSelectionTime = 0;
 	private hoverRequestSeq = 0;
 	private translationCache = new Map<string, TranslationCache>();
-	private lastTranslation: string | undefined;
+	private lastTranslation: { originalText: string; translatedText: string } | undefined;
 
 	constructor(private opts: HoverOrchestratorOptions) {}
 
 	public getLastTranslation(): string | undefined {
-		return this.lastTranslation;
+		return this.lastTranslation?.translatedText;
+	}
+
+	public getLastOriginalText(): string | undefined {
+		return this.lastTranslation?.originalText;
 	}
 
 	public async provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Hover | undefined> {
@@ -60,8 +64,14 @@ export class HoverOrchestrator {
 				if (selection.indexOf(cHover) !== -1) {
 					this.translationCache.delete(cacheKey);
 					this.translationCache.set(cacheKey, cached);
-					this.lastTranslation = cached.result;
-					return this.opts.createHover(cached.result, true, cached.method, cached.modelName);
+					this.lastTranslation = { originalText: cached.selection, translatedText: cached.result };
+					return this.opts.createHover({
+						originalText: cached.selection,
+						translatedText: cached.result,
+						isCached: true,
+						method: cached.method,
+						modelName: cached.modelName
+					});
 				}
 			}
 
@@ -122,7 +132,7 @@ export class HoverOrchestrator {
 					return undefined;
 				}
 
-				this.lastTranslation = translated;
+				this.lastTranslation = { originalText: selectionToTranslate, translatedText: translated };
 
 				const currentConfig = this.opts.getConfig();
 				const entry: TranslationCache = {
@@ -143,7 +153,13 @@ export class HoverOrchestrator {
 				this.opts.logger?.debug('Cache updated:', JSON.stringify({ method: entry.method, modelName: entry.modelName, hasResult: !!entry.result }));
 
 				this.pendingSelection = null;
-				return this.opts.createHover(translated, false, entry.method, entry.modelName);
+				return this.opts.createHover({
+					originalText: selectionToTranslate,
+					translatedText: translated,
+					isCached: false,
+					method: entry.method,
+					modelName: entry.modelName
+				});
 			}
 		} finally {
 			cancelSubscription.dispose();

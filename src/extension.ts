@@ -98,6 +98,25 @@ export function activate(context: vscode.ExtensionContext) {
 		logger.show();
 	}));
 
+	// 翻訳結果をクリップボードにコピーするコマンド
+	context.subscriptions.push(
+		vscode.commands.registerCommand('extension.copyTranslation', async () => {
+			try {
+				const last = orchestration?.getLastTranslation();
+				if (last === undefined) {
+					return;
+				}
+
+				await vscode.env.clipboard.writeText(formatTranslationResult(last));
+				vscode.window.showInformationMessage('Translation copied to clipboard');
+			} catch (error: unknown) {
+				logger.error('Copy translation failed:', error);
+				const message = error instanceof Error ? error.message : String(error);
+				vscode.window.showErrorMessage(`Copy translation failed: ${message}`);
+			}
+		})
+	);
+
 	// クリップボードを翻訳して QuickPick に表示するコマンド
 	context.subscriptions.push(
 		vscode.commands.registerCommand('extension.translateClipboardQuickPick', async () => {

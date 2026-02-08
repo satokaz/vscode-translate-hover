@@ -21,7 +21,13 @@ function escapeHtml(text: string): string {
 /**
  * ホバー表示を作成
  */
-export function createHover(translationResult: string, isCached: boolean, method: string = 'google', modelName?: string): vscode.Hover {
+export function createHover(args: {
+	originalText: string;
+	translatedText: string;
+	isCached: boolean;
+	method: string;
+	modelName?: string;
+}): vscode.Hover {
 	// In unit tests we stub the `vscode` module; defensive fallback keeps tests stable
 	// even if the stub doesn't provide a constructor-compatible MarkdownString.
 	const MarkdownStringCtor: (new () => vscode.MarkdownString) | undefined =
@@ -40,6 +46,8 @@ export function createHover(translationResult: string, isCached: boolean, method
 	markdown.isTrusted = true;
 	markdown.supportHtml = true;
 
+	const { originalText, translatedText, isCached, method, modelName } = args;
+
 	const icon = method === 'openai' ? '🤖' : '🌸';
 	const methodName = method === 'openai' ? 'AI 翻訳' : 'Google 翻訳';
 	
@@ -54,7 +62,12 @@ export function createHover(translationResult: string, isCached: boolean, method
 	}
 	
 	markdown.appendMarkdown('---\n\n');
-	markdown.appendMarkdown(`💬\n\n ${formatTranslationResult(translationResult)}\n\n`);
+	markdown.appendMarkdown('#### 💬 Translation\n\n');
+	markdown.appendMarkdown(`> ${formatTranslationResult(translatedText)}\n\n`);
+
+	markdown.appendMarkdown('---\n\n');
+	markdown.appendMarkdown('#### 📄 Original\n\n');
+	markdown.appendMarkdown(`> <sub>${escapeHtml(originalText)}</sub>\n\n`);
 	markdown.appendMarkdown('---\n\n');
 
 	if (isCached) {
@@ -62,6 +75,8 @@ export function createHover(translationResult: string, isCached: boolean, method
 	}
 
 	markdown.appendMarkdown('⬇️ [**翻訳をペースト**](command:extension.translatePaste "翻訳結果をカーソル位置にペースト")');
+	markdown.appendMarkdown('  ');
+	markdown.appendMarkdown('📋 [**訳文をコピー**](command:extension.copyTranslation "翻訳結果をクリップボードにコピー")');
 
 	const HoverCtor: (new (contents: vscode.MarkdownString) => vscode.Hover) | undefined =
 		typeof (vscode as unknown as { Hover?: unknown }).Hover === 'function'
