@@ -6,6 +6,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 
 ### Added
+- **Translate Clipboard (QuickPick)**: Translate clipboard text and show the result in QuickPick
+  - Command: `extension.translateClipboardQuickPick`
+  - Press Enter to copy the translation to clipboard
 - **Debounce Processing**: Reduces consecutive API calls during rapid text selection changes
   - 300ms delay before triggering translation (configurable via `DEFAULTS.DEBOUNCE_DELAY`)
   - Cancels pending translation if selection changes during delay

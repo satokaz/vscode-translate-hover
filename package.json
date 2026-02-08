@@ -20,6 +20,11 @@
       {
         "command": "extension.translatePaste",
         "title": "翻訳結果をペースト"
+      },
+      {
+        "command": "extension.translateClipboardQuickPick",
+        "title": "クリップボードを翻訳（QuickPick）",
+        "category": "Translate Hover"
       }
     ],
     "keybindings": [
@@ -148,6 +153,11 @@
     {
       "command": "extension.pasteTranslation",
       "title": "Paste Translation",
+      "category": "Translate Hover"
+    },
+    {
+      "command": "extension.translateClipboardQuickPick",
+      "title": "Translate Clipboard (QuickPick)",
       "category": "Translate Hover"
     },
     {

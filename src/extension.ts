@@ -189,6 +189,58 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand('extension.showLogs', () => {
 		logger.show();
 	}));
+
+	// クリップボードを翻訳して QuickPick に表示するコマンド
+	context.subscriptions.push(
+		vscode.commands.registerCommand('extension.translateClipboardQuickPick', async () => {
+			try {
+				const clipboardText = (await vscode.env.clipboard.readText()).trim();
+				if (!clipboardText) {
+					vscode.window.showInformationMessage('Clipboard is empty');
+					return;
+				}
+
+				const config = getTranslationConfig();
+				logger.debug('Translating clipboard text:', JSON.stringify(clipboardText));
+				const translated = await translateText(clipboardText, config);
+
+				const picked = await vscode.window.showQuickPick(
+					[
+						{
+							label: truncateForQuickPickLabel(translated),
+							description: truncateForQuickPickDescription(clipboardText),
+							detail: translated
+						}
+					],
+					{
+						title: 'Translation (Clipboard)',
+						placeHolder: 'Press Enter to copy translation to clipboard'
+					}
+				);
+
+				if (!picked) {
+					return;
+				}
+
+				await vscode.env.clipboard.writeText(picked.detail ?? picked.label);
+				vscode.window.showInformationMessage('Translation copied to clipboard');
+			} catch (error: unknown) {
+				logger.error('Clipboard translation failed:', error);
+				const message = error instanceof Error ? error.message : String(error);
+				vscode.window.showErrorMessage(`Clipboard translation failed: ${message}`);
+			}
+		})
+	);
+}
+
+function truncateForQuickPickLabel(text: string, max = 80): string {
+	const singleLine = text.replace(/\s+/g, ' ').trim();
+	return singleLine.length > max ? singleLine.slice(0, max - 1) + '…' : singleLine;
+}
+
+function truncateForQuickPickDescription(text: string, max = 80): string {
+	const singleLine = text.replace(/\s+/g, ' ').trim();
+	return singleLine.length > max ? singleLine.slice(0, max - 1) + '…' : singleLine;
 }
 
 // this method is called when your extension is deactivated
