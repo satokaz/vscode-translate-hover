@@ -25,6 +25,11 @@
         "command": "extension.translateClipboardQuickPick",
         "title": "クリップボードを翻訳（QuickPick）",
         "category": "Translate Hover"
+      },
+      {
+        "command": "extension.showLogs",
+        "title": "ログ出力チャネルを表示",
+        "category": "Translate Hover"
       }
     ],
     "keybindings": [
@@ -149,23 +154,6 @@
       }
     }
   },
-  "commands": [
-    {
-      "command": "extension.pasteTranslation",
-      "title": "Paste Translation",
-      "category": "Translate Hover"
-    },
-    {
-      "command": "extension.translateClipboardQuickPick",
-      "title": "Translate Clipboard (QuickPick)",
-      "category": "Translate Hover"
-    },
-    {
-      "command": "extension.showLogs",
-      "title": "ログ出力チャネルを表示",
-      "category": "Translate Hover"
-    }
-  ],
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
