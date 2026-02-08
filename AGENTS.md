@@ -33,8 +33,10 @@ This document helps contributors and AI agents understand the repository and wor
 - OpenAI Chat Completions with system-role detection and optional base URL in [src/providers/openai.ts](src/providers/openai.ts).
 
 ## Security
-- Selected text is sent to Google/OpenAI for translation (see [README.md](README.md)).
-- API keys live in VS Code settings and must not be logged; only use the logger wrapper.
+- **Selected text only** is sent to Google/OpenAI for translation; file paths, surrounding lines, or editor metadata are not sent (see [README.md](README.md) for details).
+- Data is sent on hover translation (after debounce), when using the clipboard translation command, and when LLM-based detection is enabled (OpenAI).
+- On activation the extension may perform a small system-role support check against the configured OpenAI model using fixed test strings (this does not include user-selected text).
+- API keys live in VS Code settings and are not logged; enable debug logging only when safe to do so.
 
 ## Project Overview
 
