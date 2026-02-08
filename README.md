@@ -85,3 +85,13 @@ VS Code で **選択したテキストを翻訳し、ホバーに表示**する�
 
 - [vscode-translate](https://marketplace.visualstudio.com/items?itemName=chun.vscode-translate)
 - [TranslationToolbox](https://marketplace.visualstudio.com/items?itemName=WLY.translationtoolbox)
+
+---
+
+## 開発
+
+- 依存関係のインストール: `npm install`
+- ビルド: `npm run compile`
+- ウォッチ: `npm run watch`
+- リント: `npm run lint`
+- パッケージング: `npm run package`

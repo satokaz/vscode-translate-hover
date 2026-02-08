@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 
 ### Added
+- **Hover cancellation hardening**: Stable hover updates under rapid cursor/selection changes
+  - CancellationToken checks after debounce/translation
+  - In-flight request sequencing to discard stale results
+  - AbortController wiring for Google/OpenAI requests
+- **Lint tooling**: Added ESLint configuration and npm script support
 - **Translate Clipboard (QuickPick)**: Translate clipboard text and show the result in QuickPick
   - Command: `extension.translateClipboardQuickPick`
   - Press Enter to copy the translation to clipboard
@@ -65,6 +70,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - **Optimized preload**: Now only checks user-configured model instead of all common models (reduces API calls)
 - `SystemRoleSupportCache.supportsSystemRole` now accepts `boolean | null` to represent undetermined state
 - Error handling now uses `unknown` type with proper `instanceof Error` checks
+- **Type safety improvements**: Removed remaining `any` usage in Google/OpenAI providers and added typed response handling
 
 ## [0.1.0] - 2026-01-16
 
