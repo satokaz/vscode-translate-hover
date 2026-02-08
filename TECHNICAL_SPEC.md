@@ -63,12 +63,14 @@
   - Google 翻訳のエンドポイント URL 生成
   - axios による翻訳実行、レスポンスから翻訳文を抽出
   - `http.proxy` を考慮した proxy 設定
+  - AbortSignal によるリクエスト中断に対応
 
 - `src/providers/openai.ts`
   - Chat Completions を用いた翻訳
   - system role サポートの動的検出（モデル × baseURL）
   - o1 系など system role 非対応想定モデルの自動フォールバック
   - LLM ベース言語検出（任意）
+  - AbortSignal によるリクエスト中断に対応
 
 ### 3.4 UI
 
@@ -97,6 +99,12 @@
 1. ユーザーがエディタでテキストを選択
 2. マウスホバー時に HoverProvider（`provideHover`）が呼ばれる
 
+#### 4.1.1 Hover の不安定さへの対策
+
+- **CancellationToken のチェック**: デバウンス後/翻訳後に `token.isCancellationRequested` を確認し、不要な Hover を早期終了
+- **in-flight の順序制御**: 単調増加のリクエスト ID を使い、最新リクエスト以外の結果を破棄
+- **AbortController 連動**: Hover のキャンセルを翻訳リクエストに伝播し、HTTP/API 呼び出しを中断
+
 ### 4.2 キャッシュ
 
 - キャッシュは **最後の1件のみ**をメモリに保持
@@ -109,14 +117,15 @@
 - 新規 selection を検知すると 300ms（`DEFAULTS.DEBOUNCE_DELAY`）待機
 - 待機中に selection が変わった場合はキャンセル
 - 待機完了後、selection の整合性を確認して翻訳を開始
+- デバウンス後に cancellation / 最新リクエスト判定を実施
 
 ### 4.4 翻訳ルーティング
 
 - `translateText(selection, config)` が以下を行う
   1. `targetLanguage` が `auto-` の場合は言語検出を実行
   2. `translationMethod` によりプロバイダーへ委譲
-     - `google` → `translateWithGoogle(selection, targetLanguage)`
-     - `openai` → `translateWithOpenAI(selection, config, targetLanguage)`
+    - `google` → `translateWithGoogle(selection, targetLanguage, signal)`
+    - `openai` → `translateWithOpenAI(selection, config, targetLanguage, signal)`
 
 ### 4.5 Hover 描画
 
@@ -124,6 +133,7 @@
   - method に応じたアイコン・タイトル
   - OpenAI のときはモデル名表示
   - ペーストコマンドリンク
+  - 返却直前に cancellation / 最新リクエスト判定
 
 ---
 
@@ -202,8 +212,8 @@
 
 ### 6.4 reasoning_effort
 
-- `translateHover.openaiReasoningEffort` が空でなければ `reasoning_effort` を付与
-- o1 系モデル向けの追加パラメータとして扱う（型の都合で `any` キャスト）
+- `translateHover.openaiReasoningEffort` が `low`/`medium`/`high` のときのみ `reasoning_effort` を付与
+- o1 系モデル向けの追加パラメータとして扱う
 
 ---
 
@@ -278,7 +288,8 @@
 
 ### Hover が一度で出ないことがある
 
-- VS Code の Hover トリガ / selection 変化のタイミングに依存し、Known Issue として取り扱う
+- VS Code の Hover トリガ / selection 変化のタイミングに依存
+- 対策として cancellation / in-flight 制御 / AbortController を実装
 
 ---
 
@@ -289,8 +300,28 @@ npm install
 npm run compile
 ```
 
-テスト（現状は最小構成）:
+テスト（ユニットテスト）:
 
 ```bash
 npm test
 ```
+
+### テスト補足
+
+- Mocha で `out/test/**/*.test.js` を実行
+- `vscode` 依存をモックするセットアップを事前読み込み
+
+### テスト対象一覧（現状）
+
+- `formatTranslationResult()` の全角括弧変換
+- `buildGoogleTranslateUrl()` のクエリ組み立て
+- 言語判定（`isJapanese` / `isChinese` / `isKorean` / `detectLanguage`）
+- `resolveTargetLanguage()` の auto-XX ルーティング
+- OpenAI ユーティリティ（`isSystemRoleError` / `normalizeReasoningEffort`）
+
+### 今後のテスト追加方針
+
+- **プロバイダー層**: Google/OpenAI のレスポンスパースをモックして検証
+- **キャッシュ/デバウンス**: Hover の連続呼び出しでの抑止ロジックをユニット化
+- **設定境界値**: `auto-XX` / `languageDetectionMethod` / `reasoning_effort` の境界テスト
+- **エラー経路**: タイムアウト/キャンセル時の戻り値とログ出力の検証
