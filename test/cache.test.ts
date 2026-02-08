@@ -8,12 +8,12 @@ suite('LRU Cache Tests', () => {
 
         // fill cache with cap entries
         for (let i = 1; i <= cap; i++) {
-            updateCache(cache, `key${i}`, { result: `r${i}` });
+            updateCache(cache, `key${i}`, { selection: `key${i}`, result: `r${i}`, method: 'google', targetLanguage: 'en' });
         }
         assert.strictEqual(cache.size, cap);
 
         // add one more entry - should evict the oldest (key1)
-        updateCache(cache, 'key31', { result: 'r31' });
+        updateCache(cache, 'key31', { selection: 'key31', result: 'r31', method: 'google', targetLanguage: 'en' });
         assert.strictEqual(cache.size, cap);
         assert.ok(!cache.has('key1'), 'oldest entry was not evicted');
         assert.ok(cache.has('key31'));
