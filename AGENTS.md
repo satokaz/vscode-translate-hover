@@ -441,19 +441,20 @@ Press F5 to start the extension in debug mode (configured in `.vscode/launch.jso
 
 
 
-Automated tests: currently not implemented. Suggested future additions:
+Automated tests: The repository includes a Mocha test suite under `test/`. Run `npm run compile` then `npm test` to execute the tests locally. Current tests include unit and integration-style tests that cover formatters, Google/OpenAI provider logic, language detection, orchestrator/hover behavior, and OpenAI cache utilities.
+
+Suggested future additions:
 
 1. **Unit tests**:
-   - `formatTranslationResult()`
-   - `buildGoogleTranslateUrl()`
-   - provider response parsing and error paths (mocked)
+   - Additional edge cases for `formatTranslationResult()` and URL/query generation
+   - Provider response parsing and error paths (mocked)
 
 2. **Integration tests**:
-   - VS Code API integration for hover provider
-   - hover race-condition and cancellation scenarios
+   - More Hover concurrency and cancellation scenarios
+   - End-to-end flows for OpenAI system-role fallbacks
 
 3. **E2E tests**:
-   - Full translation flow end-to-end
+   - Full translation flow end-to-end in a VS Code test harness
 
 
 ## Performance considerations
@@ -461,9 +462,9 @@ Automated tests: currently not implemented. Suggested future additions:
 ### Cache strategy
 
 **翻訳結果キャッシュ**:
-- 現在: 1件のみ保持（最後の翻訳結果）
+- 現在: LRU キャッシュを実装（最大30件） — キーは `selection + method + targetLanguage + modelName`。キャッシュヒット時はデバウンスをスキップして即時表示します。
 - モデル名も保存してトラッキングを強化
-- 将来: LRUキャッシュの実装を検討
+- 将来: キャッシュサイズや永続化のオプションを検討
 
 **System Roleサポートキャッシュ**:
 - モデル名×ベースURLごとにキャッシュ
@@ -481,7 +482,7 @@ Automated tests: currently not implemented. Suggested future additions:
 
 ### Memory management
 
-- 翻訳結果キャッシュ: 1件のみ（メモリ影響最小）
+- 翻訳結果キャッシュ: LRU（最大30件）
 - System Roleキャッシュ: 通常5-10エントリ程度（軽量）
 - 大きなテキストの翻訳には注意
 
@@ -564,7 +565,7 @@ Automated tests: currently not implemented. Suggested future additions:
 ### Priority: High
 
 1. ~~**デバウンス処理**: 連続選択時のAPI呼び出し削減~~ ✅ 実装済み（v0.2.0）
-2. **LRUキャッシュ**: 複数の翻訳結果を保持
+2. ~~**LRUキャッシュ**: 複数の翻訳結果を保持~~ ✅ 実装済み（v0.2.0）
 3. ~~**出力チャネル**: 専用のログ出力チャネル~~ ✅ 実装済み（v0.2.0）
 4. **エラーハンドリング強化**: リトライロジック、カスタムエラークラス
 
