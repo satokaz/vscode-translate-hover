@@ -79,7 +79,8 @@ export async function translateWithGoogle(selection: string, targetLanguage: str
 			});
 			
 			if (dictTerms.length > 0) {
-				result += '\n  * ' + dictTerms.join('');
+				// Add simple dictionary candidates (readable delimiter)
+				result += '\n  * ' + dictTerms.join(', ');
 			}
 		}
 

@@ -19,7 +19,7 @@ suite('Provider tests', () => {
         const res = await google.translateWithGoogle('x', 'ja');
         console.log('DEBUG google translate result:', res);
         assert.ok(res.includes('Hello world'));
-        assert.ok(res.includes('A'));
+        assert.ok(res.includes('A, B'));
 
         mockRequire.stop('axios');
         try { mockRequire.stop('../src/providers/google'); } catch (e) {}
