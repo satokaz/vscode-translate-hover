@@ -11,6 +11,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   - In-flight request sequencing to discard stale results
   - AbortController wiring for Google/OpenAI requests
 - **Lint tooling**: Added ESLint configuration and npm script support
+- **Unit tests expanded**: Added coverage for URL generation, formatting, language detection, and OpenAI utilities
+- **Mocha-based test runner**: `npm test` now runs compiled unit tests with a VS Code stub
 - **Translate Clipboard (QuickPick)**: Translate clipboard text and show the result in QuickPick
   - Command: `extension.translateClipboardQuickPick`
   - Press Enter to copy the translation to clipboard
@@ -71,6 +73,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - `SystemRoleSupportCache.supportsSystemRole` now accepts `boolean | null` to represent undetermined state
 - Error handling now uses `unknown` type with proper `instanceof Error` checks
 - **Type safety improvements**: Removed remaining `any` usage in Google/OpenAI providers and added typed response handling
+- **Commands cleanup**: Consolidated commands under `contributes.commands`
 
 ## [0.1.0] - 2026-01-16
 
