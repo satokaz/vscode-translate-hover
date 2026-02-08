@@ -291,6 +291,11 @@
 - VS Code の Hover トリガ / selection 変化のタイミングに依存
 - 対策として cancellation / in-flight 制御 / AbortController を実装
 
+### プライバシー/送信データ
+
+- 選択テキストは翻訳のために外部サービス（Google/OpenAI）へ送信される
+- API キーはログに出力しない方針
+
 ---
 
 ## 11. ビルド / 開発
