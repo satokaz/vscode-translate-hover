@@ -191,8 +191,8 @@
 
 - Map: `modelName::baseUrl`（baseUrl は空の場合 `default` として正規化）
 - 値: `{ supportsSystemRole: boolean | null, checkedAt }`
-  - `true/false`: 判定確定 → キャッシュ
-  - `null`: 未確定（チェック失敗）→ **キャッシュしない**（次回再試行）
+  - `true/false`: 判定が確定した場合は Map に保存（キャッシュ）
+  - `null`: 判定失敗 / 未確定の場合は Map に保存しない（次回再試行） — 未確定はグローバルキャッシュに保存されないことに注意
 
 #### 事前チェック（プリロード）
 

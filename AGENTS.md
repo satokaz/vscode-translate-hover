@@ -367,14 +367,14 @@ Press F5 to start the extension in debug mode (configured in `.vscode/launch.jso
 
 - APIキー未設定時: 設定促進メッセージを返す
 - On error: return a string containing the error message
-- **System Role errors**: automatically retry with user role only (record in cache)
+- **System Role errors**: automatically retry with user role only and cache that the model does **not** support system role (`supportsSystemRole = false`) when the error is a determinative system-role error (e.g., `invalid_request_error`).
 - エラーログ出力: `logger.error('OpenAI translation failed:', error)`
 
 ### System Role support check
 
 - タイムアウト: 5秒（AbortControllerで制御）
-- On error: cache as `supportsSystemRole: false`
-- リトライなし（チェック失敗 = サポートなしと判断）
+- Determinative system-role error: cache as `supportsSystemRole: false` (model does not support `system` role)
+- Network/timeout or other non-determinative failures: treat as **undetermined** (`supportsSystemRole: null`) and DO NOT cache — retry next time
 - デバッグログで詳細を記録
 
 ## Debugging & logging
