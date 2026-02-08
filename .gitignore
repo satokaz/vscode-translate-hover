@@ -2,3 +2,8 @@ out
 node_modules
 *.vsix
 .DS_Store
+
+# Mocha test artifacts
+test/mocha-artifacts/
+mocha-*.txt
+mocha-*.json

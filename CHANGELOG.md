@@ -13,6 +13,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - **Lint tooling**: Added ESLint configuration and npm script support
 - **Unit tests expanded**: Added coverage for URL generation, formatting, language detection, and OpenAI utilities
 - **Mocha-based test runner**: `npm test` now runs compiled unit tests with a VS Code stub
+- **Repository:** Move mocha artifacts into `test/mocha-artifacts/` and update `scripts/*` to use the new path (added `scripts/move_mocha_artifacts.js`)
 - **Translate Clipboard (QuickPick)**: Translate clipboard text and show the result in QuickPick
   - Command: `extension.translateClipboardQuickPick`
   - Press Enter to copy the translation to clipboard

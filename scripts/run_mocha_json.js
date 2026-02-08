@@ -1,37 +1,60 @@
-const Mocha = require('mocha');
-const glob = require('glob');
+const { spawn } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 
-async function run() {
-  const mocha = new Mocha({ ui: 'tdd', timeout: 5000 });
-  const files = glob.sync('out/test/**/*.test.js');
-  console.log('Found test files:', files);
-  files.forEach(f => mocha.addFile(f));
+const artifactsDir = path.join(__dirname, '..', 'test', 'mocha-artifacts');
+fs.mkdirSync(artifactsDir, { recursive: true });
 
-  // require test setup explicitly
+const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+const args = ['mocha', 'out/test/**/*.test.js', '--ui', 'tdd', '--require', 'out/test/setup.js', '--reporter', 'json', '--timeout', '5000', '--exit'];
+
+console.log('Spawning:', cmd, args.join(' '));
+
+const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+let stdout = '';
+let stderr = '';
+
+p.stdout.on('data', chunk => { stdout += String(chunk); });
+p.stderr.on('data', chunk => { stderr += String(chunk); });
+
+p.on('close', code => {
+  console.log('Mocha exit code', code);
+
+  // try to parse JSON output from reporter
   try {
-    require('./../out/test/setup.js');
-    console.log('Loaded test setup');
-  } catch (e) {
-    console.warn('Could not load test setup:', e && e.message);
+    let parsed;
+    // Try parsing whole stdout, but tolerate extra logs before JSON.
+    let lastErr = null;
+    // 1) quick try: whole stdout
+    try {
+      parsed = JSON.parse(stdout);
+    } catch (err) {
+      lastErr = err;
+      // 2) brute-force: find a JSON object starting at any '{' and attempt to parse
+      const firstBraceIndexes = [];
+      for (let i = 0; i < stdout.length; i++) if (stdout[i] === '{') firstBraceIndexes.push(i);
+      for (const idx of firstBraceIndexes) {
+        try {
+          const s = stdout.slice(idx);
+          parsed = JSON.parse(s);
+          lastErr = null;
+          break;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      if (!parsed && lastErr) throw lastErr;
+    }
+
+    // parsed has tests/passes/failures arrays etc depending on reporter
+    fs.writeFileSync(path.join(artifactsDir, 'mocha-details.json'), JSON.stringify(parsed, null, 2));
+    fs.writeFileSync(path.join(artifactsDir, 'mocha-result-custom.json'), JSON.stringify({ failures: parsed.failures ? parsed.failures.length : (parsed.stats ? parsed.stats.failures : 0) }, null, 2));
+  } catch (err) {
+    console.warn('Could not parse mocha json output:', err && err.message);
+    fs.writeFileSync(path.join(artifactsDir, 'mocha-output.txt'), stdout);
+    fs.writeFileSync(path.join(artifactsDir, 'mocha-error.txt'), stderr);
+    fs.writeFileSync(path.join(artifactsDir, 'mocha-result-custom.json'), JSON.stringify({ failures: 1 }, null, 2));
   }
 
-  const results = [];
-
-  const runner = mocha.run()
-    .on('test', (test) => console.log('START', test.fullTitle()))
-    .on('pass', (test) => console.log('PASS', test.fullTitle()))
-    .on('fail', (test, err) => {
-      console.log('FAIL', test.fullTitle(), err && err.stack ? err.stack : String(err));
-      results.push({ title: test.fullTitle(), err: err && err.stack ? err.stack : String(err) });
-    })
-    .on('end', function() {
-      console.log('RUNNER end. failures:', this.failures);
-      const out = { failures: results };
-      fs.writeFileSync('mocha-details.json', JSON.stringify(out, null, 2));
-      fs.writeFileSync('mocha-result-custom.json', JSON.stringify({ failures: this.failures }, null, 2));
-      process.exit(this.failures ? 1 : 0);
-    });
-}
-
-run().catch(err => { console.error(err); process.exit(2); });
+  process.exit(code);
+});
