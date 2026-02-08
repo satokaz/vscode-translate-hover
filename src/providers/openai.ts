@@ -239,16 +239,16 @@ export async function translateWithOpenAI(
 					checkedAt: new Date(cached.checkedAt).toISOString()
 				}));
 			} catch (error: unknown) {
-				// チェック失敗時はキャッシュに「未確定」として記録（次回再チェック）
-			logger.error('System role check failed, will retry next time:', error);
+            // Check failed: mark result as "undetermined" locally (supportsSystemRole = null)
+				// Do NOT store this undetermined result into the global cache so it will be retried next time.
+				logger.error('System role check failed, will retry next time:', error);
 				cached = {
 					modelName: openaiModel,
 					baseUrl: openaiBaseUrl || '',
-					supportsSystemRole: null, // 未確定
+					supportsSystemRole: null, // undetermined
 					checkedAt: Date.now()
 				};
-				// 未確定の場合はキャッシュしない（次回再チェックのため）
-				logger.debug('System role support check failed, not caching');
+				logger.debug('System role support check failed; result is undetermined and will not be cached');
 			}
 		}
 
@@ -341,6 +341,11 @@ export async function translateWithOpenAI(
  * 指定されたモデルのsystemロールサポートを事前チェック
  * extension.tsのactivate()から呼び出される
  */
+export function getSystemRoleCacheEntry(modelName: string, baseUrl: string): SystemRoleSupportCache | undefined {
+	const key = getCacheKey(modelName, baseUrl || '');
+	return systemRoleSupportCache.get(key);
+}
+
 export async function preloadSystemRoleSupportForModel(
 	apiKey: string,
 	baseUrl: string,
