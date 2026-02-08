@@ -51,7 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
 	let translate: string | undefined;
 	
 	// hover
-	vscode.languages.registerHoverProvider('*', {
+	const hoverDisposable = vscode.languages.registerHoverProvider('*', {
 		async provideHover(document, position, token) {
 			
 		// 選択された文字列をゲット
@@ -181,6 +181,8 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	context.subscriptions.push(hoverDisposable);
+
 		// 翻訳結果の paste コマンド
 		context.subscriptions.push(vscode.commands.registerCommand('extension.translatePaste', () => {
 			// 翻訳結果が何もない場合(undefined) は、ペーストしない
@@ -263,7 +265,7 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 }
 
-function buildCacheKey(
+export function buildCacheKey(
 	selection: string,
 	method: string,
 	targetLanguage: string,
@@ -273,7 +275,7 @@ function buildCacheKey(
 	return `${method}::${targetLanguage}::${modelToken}::${selection}`;
 }
 
-function updateCache(cache: Map<string, TranslationCache>, key: string, entry: TranslationCache): void {
+export function updateCache(cache: Map<string, TranslationCache>, key: string, entry: TranslationCache): void {
 	if (cache.has(key)) {
 		cache.delete(key);
 	}
