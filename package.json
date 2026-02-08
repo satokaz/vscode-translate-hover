@@ -3,6 +3,7 @@
   "displayName": "vscode-translate-hover",
   "description": "Translate selected text using Google Translate and display the result in a hover",
   "version": "0.2.0",
+  "license": "MIT",
   "publisher": "satokaz",
   "engines": {
     "vscode": "^1.85.0"
