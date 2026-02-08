@@ -52,7 +52,7 @@ function extractErrorCode(error: unknown): string {
 	return '';
 }
 
-function isSystemRoleError(error: unknown): boolean {
+export function isSystemRoleError(error: unknown): boolean {
 	const apiError =
 		error !== null && typeof error === 'object' && 'error' in error
 			? (error as { error?: unknown }).error ?? error
@@ -65,6 +65,16 @@ function isSystemRoleError(error: unknown): boolean {
 		message.includes('system') ||
 		message.includes('unsupported parameter')
 	);
+}
+
+export type ReasoningEffort = 'low' | 'medium' | 'high';
+
+export function normalizeReasoningEffort(value?: string): ReasoningEffort | undefined {
+	const normalized = value?.trim();
+	if (normalized === 'low' || normalized === 'medium' || normalized === 'high') {
+		return normalized;
+	}
+	return undefined;
 }
 
 /**
@@ -286,8 +296,8 @@ export async function translateWithOpenAI(
 		}
 
 		// reasoning_effort パラメータ (o1シリーズのモデル用)
-		const reasoningEffort = config.reasoningEffort?.trim() ?? '';
-		if (reasoningEffort === 'low' || reasoningEffort === 'medium' || reasoningEffort === 'high') {
+		const reasoningEffort = normalizeReasoningEffort(config.reasoningEffort);
+		if (reasoningEffort) {
 			completionParams.reasoning_effort = reasoningEffort;
 			logger.debug('Using reasoning_effort:', reasoningEffort);
 		}

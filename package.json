@@ -159,7 +159,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "vscode-test",
+    "test": "mocha \"out/test/**/*.test.js\" --ui tdd --require out/test/setup.js",
     "lint": "eslint src --ext ts",
     "package": "vsce package"
   },
@@ -167,11 +167,14 @@
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.34.0",
     "@types/mocha": "^10.0.6",
+    "@types/mock-require": "^2.0.4",
     "@types/node": "^20.x",
     "@types/vscode": "^1.85.0",
     "@vscode/test-cli": "^0.0.4",
     "@vscode/test-electron": "^2.3.8",
     "eslint": "^8.57.0",
+    "mocha": "^10.8.2",
+    "mock-require": "^3.0.3",
     "typescript": "^5.3.3"
   },
   "dependencies": {

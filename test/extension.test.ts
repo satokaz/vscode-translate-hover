@@ -1,22 +1,37 @@
-//
-// Note: This example test is leveraging the Mocha test framework.
-// Please refer to their documentation on https://mochajs.org/ for help.
-//
-
-// The module 'assert' provides assertion methods from node
 import * as assert from 'assert';
+import { AUTO_DETECT_PAIRS } from '../src/constants';
+import { buildGoogleTranslateUrl } from '../src/providers/google';
+import { formatTranslationResult } from '../src/utils/format';
+import { resolveTargetLanguage } from '../src/utils/languageDetector';
 
-// You can import and use all API from the 'vscode' module
-// as well as import your extension to test it
-import * as vscode from 'vscode';
-import * as myExtension from '../src/extension';
+suite('Utils Tests', () => {
+    test('formatTranslationResult adds spacing around fullwidth parentheses', () => {
+        const input = '（test）and（more）';
+        const expected = ' (test) and (more) ';
+        assert.strictEqual(formatTranslationResult(input), expected);
+    });
 
-// Defines a Mocha test suite to group tests of similar kind together
-suite("Extension Tests", () => {
+    test('resolveTargetLanguage uses detected language when provided', () => {
+        const target = resolveTargetLanguage('日本語です', 'auto-ja', AUTO_DETECT_PAIRS, 'ja');
+        assert.strictEqual(target, 'en');
+    });
 
-    // Defines a Mocha unit test
-    test("Something 1", () => {
-        assert.equal(-1, [1, 2, 3].indexOf(5));
-        assert.equal(-1, [1, 2, 3].indexOf(0));
+    test('resolveTargetLanguage falls back to primary language', () => {
+        const target = resolveTargetLanguage('Hello', 'auto-ja', AUTO_DETECT_PAIRS, 'en');
+        assert.strictEqual(target, 'ja');
+    });
+
+    test('buildGoogleTranslateUrl includes expected parameters', () => {
+        const url = buildGoogleTranslateUrl('Hello world', 'ja');
+        const parsed = new URL(url);
+        const params = parsed.searchParams;
+
+        assert.strictEqual(parsed.origin, 'https://translate.google.com');
+        assert.strictEqual(params.get('client'), 'gtx');
+        assert.strictEqual(params.get('sl'), 'auto');
+        assert.strictEqual(params.get('tl'), 'ja');
+        assert.strictEqual(params.get('q'), 'Hello world');
+        assert.ok(params.getAll('dt').includes('t'));
+        assert.ok(params.getAll('dt').includes('bd'));
     });
 });

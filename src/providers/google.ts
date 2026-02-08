@@ -89,7 +89,7 @@ export async function translateWithGoogle(selection: string, targetLanguage: str
 /**
  * Google翻訳APIのURLを生成
  */
-function buildGoogleTranslateUrl(text: string, targetLanguage: string, fromLanguage: string = 'auto'): string {
+export function buildGoogleTranslateUrl(text: string, targetLanguage: string, fromLanguage: string = 'auto'): string {
 	const params = new URLSearchParams({
 		client: 'gtx',
 		sl: fromLanguage,
