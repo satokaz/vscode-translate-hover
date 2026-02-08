@@ -16,6 +16,7 @@ import * as logger from './utils/logger';
 let debounceTimer: NodeJS.Timeout | null = null;
 let pendingSelection: string | null = null;
 let lastSelectionTime: number = 0;
+let hoverRequestSeq = 0;
 
 export function activate(context: vscode.ExtensionContext) {
 	// ログ出力チャネルを初期化
@@ -63,6 +64,9 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 			
 			let selection = document.getText(editor.selection);
+			const requestId = ++hoverRequestSeq;
+			const abortController = new AbortController();
+			const cancelSubscription = token.onCancellationRequested(() => abortController.abort());
 			
 			// デバッグ: 選択されたテキストをログ出力
 			if (selection && selection !== "" && selection !== " ") {
@@ -70,14 +74,15 @@ export function activate(context: vscode.ExtensionContext) {
 				logger.debug('Selection length:', selection.length);
 			}
 
-			// キャッシュヒット: 既存の翻訳結果を即座に表示
-			if (cache.result && selection === cache.selection) {
-				logger.debug('Using cached translation for selection');
-				const cHover = document.getText(document.getWordRangeAtPosition(position));
-				if (selection.indexOf(cHover) !== -1) {
-					return createHover(cache.result, true, cache.method, cache.modelName);
+			try {
+				// キャッシュヒット: 既存の翻訳結果を即座に表示
+				if (cache.result && selection === cache.selection) {
+					logger.debug('Using cached translation for selection');
+					const cHover = document.getText(document.getWordRangeAtPosition(position));
+					if (selection.indexOf(cHover) !== -1) {
+						return createHover(cache.result, true, cache.method, cache.modelName);
+					}
 				}
-			}
 
 			// 選択が空じゃないか? スペースだけじゃないか? 一つ前の内容と同一じゃないか?をチェック
 			if (selection !== "" && selection !== " " && selection !== cache.selection) {
@@ -107,6 +112,10 @@ export function activate(context: vscode.ExtensionContext) {
 				
 				// デバウンス待機
 				await debouncePromise;
+				if (token.isCancellationRequested || requestId !== hoverRequestSeq) {
+					logger.debug('Hover request cancelled after debounce');
+					return undefined;
+				}
 				
 				// 待機中に選択が変更されていないかチェック
 				if (currentSelectionTime !== lastSelectionTime) {
@@ -125,7 +134,11 @@ export function activate(context: vscode.ExtensionContext) {
 				logger.debug('Debounce timeout reached, starting translation...');
 				
 				const config = getTranslationConfig();
-				translate = await translateText(selectionToTranslate, config);
+				translate = await translateText(selectionToTranslate, config, abortController.signal);
+				if (token.isCancellationRequested || requestId !== hoverRequestSeq) {
+					logger.debug('Hover request cancelled after translation');
+					return undefined;
+				}
 				logger.debug('Translation result:', translate);
 				
 				const currentConfig = getTranslationConfig();
@@ -145,6 +158,9 @@ export function activate(context: vscode.ExtensionContext) {
 				pendingSelection = null;
 				
 				return createHover(translate, false, cache.method, cache.modelName);
+			}
+			} finally {
+				cancelSubscription.dispose();
 			}
 		}
 	});
@@ -256,7 +272,11 @@ export function deactivate() {
 	logger.disposeLogger();
 }
 
-async function translateText(selection: string, config: ReturnType<typeof getTranslationConfig>): Promise<string> {
+async function translateText(
+	selection: string,
+	config: ReturnType<typeof getTranslationConfig>,
+	signal?: AbortSignal
+): Promise<string> {
 	// 自動言語検出が有効な場合、適切なターゲット言語を決定
 	let targetLanguage = config.targetLanguage;
 	if (config.targetLanguage.startsWith(AUTO_DETECT_PREFIX)) {
@@ -269,7 +289,7 @@ async function translateText(selection: string, config: ReturnType<typeof getTra
 					apiKey: config.openaiApiKey,
 					...(config.openaiBaseUrl ? { baseURL: config.openaiBaseUrl } : {})
 				});
-				detectedLang = await detectLanguageWithLLM(selection, openai, config.openaiModel);
+				detectedLang = await detectLanguageWithLLM(selection, openai, config.openaiModel, signal);
 					logger.debug('LLM detected language:', detectedLang);
 				} catch (error) {
 					logger.error('LLM language detection failed, falling back to regex:', error);
@@ -286,9 +306,9 @@ async function translateText(selection: string, config: ReturnType<typeof getTra
 	}
 	
 	if (config.translationMethod === 'openai') {
-		return await translateWithOpenAI(selection, config, targetLanguage);
+		return await translateWithOpenAI(selection, config, targetLanguage, signal);
 	} else {
-		return await translateWithGoogle(selection, targetLanguage);
+		return await translateWithGoogle(selection, targetLanguage, signal);
 	}
 }
 

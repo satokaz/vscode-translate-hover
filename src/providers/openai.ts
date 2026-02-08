@@ -105,7 +105,12 @@ async function checkSystemRoleSupport(
  * @param openai OpenAIクライアント
  * @returns 言語コード（ja, en, zh, ko など）
  */
-export async function detectLanguageWithLLM(text: string, openai: OpenAI, model: string): Promise<string> {
+export async function detectLanguageWithLLM(
+	text: string,
+	openai: OpenAI,
+	model: string,
+	signal?: AbortSignal
+): Promise<string> {
 	try {
 		logger.debug('Detecting language with LLM for text:', text.substring(0, 50) + '...');
 		
@@ -119,13 +124,17 @@ export async function detectLanguageWithLLM(text: string, openai: OpenAI, model:
 			],
 			max_tokens: 10,
 			temperature: 0
-		});
+		}, signal ? { signal: signal as any } : undefined);
 
 		const detectedLang = response.choices[0]?.message?.content?.trim().toLowerCase() || 'en';
 		logger.debug('LLM detected language:', detectedLang);
 		
 		return detectedLang;
 	} catch (error: unknown) {
+		if (signal?.aborted) {
+			logger.debug('LLM language detection aborted');
+			return 'en';
+		}
 		logger.error('LLM language detection failed:', error);
 		// フォールバック: 英語と仮定
 		return 'en';
@@ -142,7 +151,12 @@ export async function detectLanguageWithLLM(text: string, openai: OpenAI, model:
  * @param config 設定
  * @param targetLanguage ターゲット言語（auto-detect時に解決済みの言語コード）
  */
-export async function translateWithOpenAI(selection: string, config: TranslationConfig, targetLanguage: string): Promise<string> {
+export async function translateWithOpenAI(
+	selection: string,
+	config: TranslationConfig,
+	targetLanguage: string,
+	signal?: AbortSignal
+): Promise<string> {
 	const { openaiApiKey, openaiBaseUrl, openaiModel } = config;
 
 	if (!openaiApiKey || openaiApiKey.trim() === '') {
@@ -248,13 +262,20 @@ export async function translateWithOpenAI(selection: string, config: Translation
 			logger.debug('Using reasoning_effort:', config.reasoningEffort);
 		}
 
-		const completion = await openai.chat.completions.create(completionParams);
+		const completion = await openai.chat.completions.create(
+			completionParams,
+			signal ? { signal: signal as any } : undefined
+		);
 
 		const translatedText = completion.choices[0]?.message?.content || 'Translation failed';
 		logger.debug('OpenAI translation completed');
 		
 		return translatedText;
 	} catch (error: unknown) {
+		if (signal?.aborted) {
+			logger.debug('OpenAI translation aborted');
+			return 'Translation cancelled';
+		}
 		logger.error('OpenAI translation failed:', error);
 		
 		const errorMessage = error instanceof Error ? error.message : String(error);

@@ -10,7 +10,7 @@ import * as logger from '../utils/logger';
 /**
  * Google翻訳を使った翻訳
  */
-export async function translateWithGoogle(selection: string, targetLanguage: string): Promise<string> {
+export async function translateWithGoogle(selection: string, targetLanguage: string, signal?: AbortSignal): Promise<string> {
 	const translateUrl = buildGoogleTranslateUrl(selection, targetLanguage);
 	const cfg = vscode.workspace.getConfiguration();
 	const proxyStr = cfg.get<string>("http.proxy");
@@ -19,7 +19,8 @@ export async function translateWithGoogle(selection: string, targetLanguage: str
 		const axiosConfig: any = {
 			url: translateUrl,
 			method: 'GET',
-			timeout: DEFAULTS.TIMEOUT
+			timeout: DEFAULTS.TIMEOUT,
+			signal
 		};
 
 		// プロキシ設定
@@ -63,6 +64,10 @@ export async function translateWithGoogle(selection: string, targetLanguage: str
 
 		return result;
 	} catch (error) {
+		if (signal?.aborted) {
+			logger.debug('Google translation aborted');
+			return 'Translation cancelled';
+		}
 		logger.error('Google translation failed:', error);
 		return 'Translation failed';
 	}
