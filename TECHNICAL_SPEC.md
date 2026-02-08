@@ -51,6 +51,7 @@
   - 翻訳結果キャッシュ（最後の1件）
   - 設定の読み取りと反映（デバッグログの動的切替）
   - OpenAI system role サポート事前チェック（バックグラウンド）
+  - **Import / 型方針:** `HoverOrchestrator` は可能な限り静的な型付き `import` を使ってインポートし、`any` を避ける。循環参照回避などで遅延読み込みが必要な場合は、型付きの動的 `import()`（例: `const { HoverOrchestrator } = await import('./hover/orchestrator')`）を採用し、結果を明示的に `HoverOrchestrator` 型で扱う。
 
 ### 3.2 設定
 

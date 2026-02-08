@@ -1,5 +1,3 @@
-'use strict';
-
 import * as vscode from 'vscode';
 import { TranslationCache } from './types';
 import { getTranslationConfig } from './config';
@@ -11,6 +9,7 @@ import { resolveTargetLanguage, detectLanguage } from './utils/languageDetector'
 import { AUTO_DETECT_PREFIX, AUTO_DETECT_PAIRS, DEFAULTS } from './constants';
 import OpenAI from 'openai';
 import * as logger from './utils/logger';
+import { HoverOrchestrator } from './hover/orchestrator';
 
 
 
@@ -40,11 +39,9 @@ export function activate(context: vscode.ExtensionContext) {
 		logger.error('Preload system role check failed:', error);
 	});
 
-	let orchestration: any; // will hold HoverOrchestrator instance
+	let orchestration: HoverOrchestrator | undefined; // HoverOrchestrator instance (typed)
 
-	
-// hover orchestration
-	const { HoverOrchestrator } = require('./hover/orchestrator');
+	// hover orchestration (instantiate now using the typed class)
 	orchestration = new HoverOrchestrator({
 		getConfig: getTranslationConfig,
 		translateText,
