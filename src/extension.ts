@@ -12,13 +12,7 @@ import { AUTO_DETECT_PREFIX, AUTO_DETECT_PAIRS, DEFAULTS } from './constants';
 import OpenAI from 'openai';
 import * as logger from './utils/logger';
 
-// デバウンス用グローバル変数
-let debounceTimer: NodeJS.Timeout | null = null;
-let pendingSelection: string | null = null;
-let lastSelectionTime: number = 0;
-let hoverRequestSeq = 0;
 
-const CACHE_MAX_ENTRIES = 30;
 
 export function activate(context: vscode.ExtensionContext) {
 	// ログ出力チャネルを初期化
@@ -46,176 +40,57 @@ export function activate(context: vscode.ExtensionContext) {
 		logger.error('Preload system role check failed:', error);
 	});
 
-	const translationCache = new Map<string, TranslationCache>();
+	let orchestration: any; // will hold HoverOrchestrator instance
+
 	
-	let translate: string | undefined;
-	
-	// hover
-	const hoverDisposable = vscode.languages.registerHoverProvider('*', {
-		async provideHover(document, position, token) {
-			
-		// 選択された文字列をゲット
-			const editor = vscode.window.activeTextEditor;
-			if (!editor) {
-				return;
-			}
-			
-			const selection = document.getText(editor.selection);
-			const requestId = ++hoverRequestSeq;
-			const abortController = new AbortController();
-			const cancelSubscription = token.onCancellationRequested(() => abortController.abort());
-			
-			// デバッグ: 選択されたテキストをログ出力
-			if (selection && selection !== "" && selection !== " ") {
-				logger.debug('Selected text:', JSON.stringify(selection));
-				logger.debug('Selection length:', selection.length);
-			}
-
-			try {
-				const configForCache = getTranslationConfig();
-				const cacheKey = buildCacheKey(
-					selection,
-					configForCache.translationMethod,
-					configForCache.targetLanguage,
-					configForCache.translationMethod === 'openai' ? configForCache.openaiModel : undefined
-				);
-
-				const cached = translationCache.get(cacheKey);
-				if (cached) {
-					logger.debug('Using cached translation for selection');
-					const cHover = document.getText(document.getWordRangeAtPosition(position));
-					if (selection.indexOf(cHover) !== -1) {
-						translationCache.delete(cacheKey);
-						translationCache.set(cacheKey, cached);
-						translate = cached.result;
-						return createHover(cached.result, true, cached.method, cached.modelName);
-					}
-				}
-
-			// 選択が空じゃないか? スペースだけじゃないか? をチェック
-			if (selection !== "" && selection !== " ") {
-				logger.debug('New selection detected');
-				
-				// 既存のデバウンスタイマーをキャンセル
-				if (debounceTimer) {
-					logger.debug('Cancelling previous debounce timer');
-					clearTimeout(debounceTimer);
-					debounceTimer = null;
-				}
-				
-				// 選択を保存
-				pendingSelection = selection;
-				const currentSelectionTime = Date.now();
-				lastSelectionTime = currentSelectionTime;
-				
-				// デバウンス待機のPromiseを作成
-				const debouncePromise = new Promise<void>((resolve) => {
-					debounceTimer = setTimeout(() => {
-						debounceTimer = null;
-						resolve();
-					}, DEFAULTS.DEBOUNCE_DELAY);
-				});
-				
-				logger.debug(`Debounce in progress, waiting ${DEFAULTS.DEBOUNCE_DELAY}ms...`);
-				
-				// デバウンス待機
-				await debouncePromise;
-				if (token.isCancellationRequested || requestId !== hoverRequestSeq) {
-					logger.debug('Hover request cancelled after debounce');
-					return undefined;
-				}
-				
-				// 待機中に選択が変更されていないかチェック
-				if (currentSelectionTime !== lastSelectionTime) {
-					logger.debug('Selection changed during debounce, cancelling');
-					return undefined;
-				}
-				
-				const selectionToTranslate = pendingSelection;
-				
-				if (!selectionToTranslate || selectionToTranslate !== document.getText(editor.selection)) {
-					logger.debug('Selection mismatch after debounce');
-					pendingSelection = null;
-					return undefined;
-				}
-				
-				logger.debug('Debounce timeout reached, starting translation...');
-				
-				const config = getTranslationConfig();
-				translate = await translateText(selectionToTranslate, config, abortController.signal);
-				if (token.isCancellationRequested || requestId !== hoverRequestSeq) {
-					logger.debug('Hover request cancelled after translation');
-					return undefined;
-				}
-				logger.debug('Translation result:', translate);
-				
-				const currentConfig = getTranslationConfig();
-				const entry: TranslationCache = {
-					selection: selectionToTranslate,
-					result: translate,
-					method: currentConfig.translationMethod,
-					targetLanguage: currentConfig.targetLanguage,
-					modelName: currentConfig.translationMethod === 'openai' ? currentConfig.openaiModel : undefined
-				};
-				const entryKey = buildCacheKey(
-					selectionToTranslate,
-					currentConfig.translationMethod,
-					currentConfig.targetLanguage,
-					entry.modelName
-				);
-				updateCache(translationCache, entryKey, entry);
-				
-				logger.debug('Cache updated:', JSON.stringify({
-					method: entry.method,
-					modelName: entry.modelName,
-					hasResult: !!entry.result
-				}));
-				
-				pendingSelection = null;
-				
-				return createHover(translate, false, entry.method, entry.modelName);
-			}
-			} finally {
-				cancelSubscription.dispose();
-			}
-		}
+// hover orchestration
+	const { HoverOrchestrator } = require('./hover/orchestrator');
+	orchestration = new HoverOrchestrator({
+		getConfig: getTranslationConfig,
+		translateText,
+		createHover,
+		logger
 	});
 
+	const hoverDisposable = vscode.languages.registerHoverProvider('*', {
+		provideHover: orchestration.provideHover.bind(orchestration)
+	});
 	context.subscriptions.push(hoverDisposable);
 
 		// 翻訳結果の paste コマンド
-		context.subscriptions.push(vscode.commands.registerCommand('extension.translatePaste', () => {
-			// 翻訳結果が何もない場合(undefined) は、ペーストしない
-			if(translate === undefined){
-				return;
-			}
-			// カーソルがある行を取得
-			const editor = vscode.window.activeTextEditor;
-			if (!editor) {
-				return;
-			}
-			
-			const selection2 = editor.selection;
+	context.subscriptions.push(vscode.commands.registerCommand('extension.translatePaste', () => {
+		// 翻訳結果が何もない場合(undefined) は、ペーストしない
+		const last = orchestration?.getLastTranslation();
+		if(last === undefined){
+			return;
+		}
+		// カーソルがある行を取得
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			return;
+		}
+		
+		const selection2 = editor.selection;
 
-			if (selection2.isReversed === true) {
-					// 右から左へ選択した場合
-					editor.edit(edit =>
-							edit.insert(new vscode.Position(Number(selection2.anchor.line) + 1, 0), formatTranslationResult(translate!) + '\n')
-					);
-			} else if (selection2.isSingleLine === false && selection2.end.character === 0) {
-					// ダブルクリックで選択した場合
-					editor.edit(edit =>
-							edit.insert(new vscode.Position(Number(selection2.end.line), 0), formatTranslationResult(translate!) + '\n')
-					);
-			} else {
-					// 左から右へ選択した場合 (通常の選択)
-					editor.edit(edit =>
-							edit.insert(new vscode.Position(Number(selection2.end.line) + 1, 0), formatTranslationResult(translate!) + '\n')
-					);
-			}
-			// ペースト後に選択解除
-			editor.selection = new vscode.Selection(selection2.active, selection2.active);
-		}));
+		if (selection2.isReversed === true) {
+				// 右から左へ選択した場合
+				editor.edit(edit =>
+						edit.insert(new vscode.Position(Number(selection2.anchor.line) + 1, 0), formatTranslationResult(last) + '\n')
+				);
+		} else if (selection2.isSingleLine === false && selection2.end.character === 0) {
+				// ダブルクリックで選択した場合
+				editor.edit(edit =>
+						edit.insert(new vscode.Position(Number(selection2.end.line), 0), formatTranslationResult(last) + '\n')
+				);
+		} else {
+				// 左から右へ選択した場合 (通常の選択)
+				editor.edit(edit =>
+						edit.insert(new vscode.Position(Number(selection2.end.line) + 1, 0), formatTranslationResult(last) + '\n')
+				);
+		}
+		// ペースト後に選択解除
+		editor.selection = new vscode.Selection(selection2.active, selection2.active);
+	}));
 
 	// ログ出力チャネルを表示するコマンド
 	context.subscriptions.push(vscode.commands.registerCommand('extension.showLogs', () => {
@@ -265,28 +140,7 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 }
 
-export function buildCacheKey(
-	selection: string,
-	method: string,
-	targetLanguage: string,
-	modelName?: string
-): string {
-	const modelToken = modelName ?? '';
-	return `${method}::${targetLanguage}::${modelToken}::${selection}`;
-}
 
-export function updateCache(cache: Map<string, TranslationCache>, key: string, entry: TranslationCache): void {
-	if (cache.has(key)) {
-		cache.delete(key);
-	}
-	cache.set(key, entry);
-	if (cache.size > CACHE_MAX_ENTRIES) {
-		const oldestKey = cache.keys().next().value;
-		if (oldestKey !== undefined) {
-			cache.delete(oldestKey);
-		}
-	}
-}
 
 function truncateForQuickPickLabel(text: string, max = 80): string {
 	const singleLine = text.replace(/\s+/g, ' ').trim();
@@ -300,13 +154,6 @@ function truncateForQuickPickDescription(text: string, max = 80): string {
 
 // this method is called when your extension is deactivated
 export function deactivate() {
-	// デバウンスタイマーをクリア
-	if (debounceTimer) {
-		clearTimeout(debounceTimer);
-		debounceTimer = null;
-		logger.debug('Debounce timer cleared on deactivation');
-	}
-	
 	// ロガーをクリーンアップ
 	logger.disposeLogger();
 }

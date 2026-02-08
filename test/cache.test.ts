@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { updateCache } from '../src/extension';
+import { updateCache } from '../src/hover/cache';
 
 suite('LRU Cache Tests', () => {
     test('evicts oldest entry when capacity exceeded', () => {
