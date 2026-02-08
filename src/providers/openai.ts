@@ -286,9 +286,10 @@ export async function translateWithOpenAI(
 		}
 
 		// reasoning_effort パラメータ (o1シリーズのモデル用)
-		if (config.reasoningEffort && config.reasoningEffort.trim() !== '') {
-			completionParams.reasoning_effort = config.reasoningEffort;
-			logger.debug('Using reasoning_effort:', config.reasoningEffort);
+		const reasoningEffort = config.reasoningEffort?.trim() ?? '';
+		if (reasoningEffort === 'low' || reasoningEffort === 'medium' || reasoningEffort === 'high') {
+			completionParams.reasoning_effort = reasoningEffort;
+			logger.debug('Using reasoning_effort:', reasoningEffort);
 		}
 
 		const completion = await openai.chat.completions.create(
