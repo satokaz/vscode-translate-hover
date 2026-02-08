@@ -63,7 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 			
-			let selection = document.getText(editor.selection);
+			const selection = document.getText(editor.selection);
 			const requestId = ++hoverRequestSeq;
 			const abortController = new AbortController();
 			const cancelSubscription = token.onCancellationRequested(() => abortController.abort());
@@ -178,8 +178,6 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 			
 			const selection2 = editor.selection;
-			const startLine = selection2.start.line;
-			const lastCharIndex = editor.document.lineAt(startLine).text.length;
 
 			if (selection2.isReversed === true) {
 					// 右から左へ選択した場合

@@ -27,15 +27,41 @@ function getCacheKey(modelName: string, baseUrl: string): string {
 	return key;
 }
 
-/**
- * systemロール関連のエラーかどうかを判定
- */
-function isSystemRoleError(error: any): boolean {
-	const apiError = error?.error || error;
-	const message = apiError?.message?.toLowerCase() || '';
-	
+function hasErrorMessage(error: unknown): error is { message?: unknown } {
+	return error !== null && typeof error === 'object' && 'message' in error;
+}
+
+function extractErrorMessage(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	if (typeof error === 'string') {
+		return error;
+	}
+	if (hasErrorMessage(error) && typeof error.message === 'string') {
+		return error.message;
+	}
+	return '';
+}
+
+function extractErrorCode(error: unknown): string {
+	if (error !== null && typeof error === 'object' && 'code' in error) {
+		const code = (error as { code?: unknown }).code;
+		return typeof code === 'string' ? code : '';
+	}
+	return '';
+}
+
+function isSystemRoleError(error: unknown): boolean {
+	const apiError =
+		error !== null && typeof error === 'object' && 'error' in error
+			? (error as { error?: unknown }).error ?? error
+			: error;
+	const message = extractErrorMessage(apiError).toLowerCase();
+	const code = extractErrorCode(apiError);
+
 	return (
-		apiError?.code === 'invalid_request_error' ||
+		code === 'invalid_request_error' ||
 		message.includes('system') ||
 		message.includes('unsupported parameter')
 	);
@@ -66,7 +92,7 @@ async function checkSystemRoleSupport(
 			max_tokens: 1,
 			temperature: 0
 		}, {
-			signal: controller.signal as any
+			signal: controller.signal
 		});
 
 		clearTimeout(timeoutId);
@@ -124,7 +150,7 @@ export async function detectLanguageWithLLM(
 			],
 			max_tokens: 10,
 			temperature: 0
-		}, signal ? { signal: signal as any } : undefined);
+		}, signal ? { signal } : undefined);
 
 		const detectedLang = response.choices[0]?.message?.content?.trim().toLowerCase() || 'en';
 		logger.debug('LLM detected language:', detectedLang);
@@ -245,7 +271,10 @@ export async function translateWithOpenAI(
 		}
 
 		// 完了パラメータの構築（型安全）
-		const completionParams: ChatCompletionCreateParamsNonStreaming = {
+		type ReasoningEffortParams = ChatCompletionCreateParamsNonStreaming & {
+			reasoning_effort?: string;
+		};
+		const completionParams: ReasoningEffortParams = {
 			model: openaiModel,
 			messages: messages,
 		};
@@ -258,13 +287,13 @@ export async function translateWithOpenAI(
 
 		// reasoning_effort パラメータ (o1シリーズのモデル用)
 		if (config.reasoningEffort && config.reasoningEffort.trim() !== '') {
-			(completionParams as any).reasoning_effort = config.reasoningEffort;
+			completionParams.reasoning_effort = config.reasoningEffort;
 			logger.debug('Using reasoning_effort:', config.reasoningEffort);
 		}
 
 		const completion = await openai.chat.completions.create(
 			completionParams,
-			signal ? { signal: signal as any } : undefined
+			signal ? { signal } : undefined
 		);
 
 		const translatedText = completion.choices[0]?.message?.content || 'Translation failed';

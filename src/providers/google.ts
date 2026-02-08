@@ -3,7 +3,7 @@
  */
 
 import * as vscode from 'vscode';
-import axios, { AxiosProxyConfig } from 'axios';
+import axios, { AxiosProxyConfig, AxiosRequestConfig } from 'axios';
 import { DEFAULTS } from '../constants';
 import * as logger from '../utils/logger';
 
@@ -15,8 +15,21 @@ export async function translateWithGoogle(selection: string, targetLanguage: str
 	const cfg = vscode.workspace.getConfiguration();
 	const proxyStr = cfg.get<string>("http.proxy");
 
+	interface GoogleTranslateSentence {
+		trans?: string;
+	}
+
+	interface GoogleTranslateDictEntry {
+		terms?: string[];
+	}
+
+	interface GoogleTranslateResponse {
+		sentences?: GoogleTranslateSentence[];
+		dict?: GoogleTranslateDictEntry[];
+	}
+
 	try {
-		const axiosConfig: any = {
+		const axiosConfig: AxiosRequestConfig = {
 			url: translateUrl,
 			method: 'GET',
 			timeout: DEFAULTS.TIMEOUT,
@@ -33,13 +46,13 @@ export async function translateWithGoogle(selection: string, targetLanguage: str
 			} as AxiosProxyConfig;
 		}
 
-		const response = await axios(axiosConfig);
+		const response = await axios<GoogleTranslateResponse>(axiosConfig);
 		const data = response.data;
 
 		// 翻訳結果の抽出
 		const translations: string[] = [];
 		if (data.sentences) {
-			data.sentences.forEach((sentence: any) => {
+			data.sentences.forEach((sentence) => {
 				if (sentence.trans) {
 					translations.push(sentence.trans);
 				}
@@ -51,9 +64,9 @@ export async function translateWithGoogle(selection: string, targetLanguage: str
 		// 辞書データの追加
 		if (data.dict) {
 			const dictTerms: string[] = [];
-			data.dict.forEach((dict: any) => {
+			data.dict.forEach((dict) => {
 				if (dict.terms) {
-					dictTerms.push(dict.terms);
+					dictTerms.push(...dict.terms);
 				}
 			});
 			
