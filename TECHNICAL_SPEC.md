@@ -317,6 +317,12 @@ npm test
 - Mocha で `out/test/**/*.test.js` を実行
 - `vscode` 依存をモックするセットアップを事前読み込み
 
+**Import / Test policy:**
+
+- **Production code (`src/`)** は静的な `import` を優先します。型安全性とツールサポートのため、可能な限り ES Module / TypeScript の静的 import を用いてください。循環参照回避や遅延読み込みが必要な場合は、`await import('./path')` のような動的 import を用いても構いませんが、その場合も戻り値を適切に型注釈し、コメントで理由を示してください。
+
+- **テストコード (`test/`)** では、`mock-require` 等のモッキングライブラリを利用する都合上、CommonJS の `require()` を使ってモジュールを読み込むことがあります。これはテスト用の意図的な例外であり、実運用コードに CommonJS の `require` を導入することは推奨しません。
+
 ### テスト対象一覧（現状）
 
 - `formatTranslationResult()` の全角括弧変換
