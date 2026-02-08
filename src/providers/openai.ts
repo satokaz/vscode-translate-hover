@@ -173,7 +173,7 @@ export async function translateWithOpenAI(selection: string, config: Translation
 		const needsCheck = !cached || cached.supportsSystemRole === null;
 		
 		if (needsCheck) {
-			console.log('[INFO] Checking system role support for model:', openaiModel);
+			logger.info('Checking system role support for model:', openaiModel);
 			try {
 				const checkResult = await checkSystemRoleSupport(openai, openaiModel);
 				cached = {
@@ -218,7 +218,7 @@ export async function translateWithOpenAI(selection: string, config: Translation
 			});
 			messages.push({
 				role: 'user',
-				content: selection
+				content: selection,
 			});
 			logger.debug('Using system role for translation');
 		} else {
@@ -233,7 +233,7 @@ export async function translateWithOpenAI(selection: string, config: Translation
 		// 完了パラメータの構築（型安全）
 		const completionParams: ChatCompletionCreateParamsNonStreaming = {
 			model: openaiModel,
-			messages: messages
+			messages: messages,
 		};
 
 		// systemロールサポートモデルのみtemperature/max_tokensを追加
@@ -314,7 +314,7 @@ export async function preloadSystemRoleSupportForModel(
 			checkedAt: checkResult.checkedAt
 		});
 		
-		console.log('[INFO] Preloaded system role support for', modelName, ':', checkResult.supportsSystemRole);
+		logger.info('Preloaded system role support for', modelName, ':', checkResult.supportsSystemRole);
 		logger.debug('Preload cache entry:', JSON.stringify({
 			key: cacheKey,
 			modelName,

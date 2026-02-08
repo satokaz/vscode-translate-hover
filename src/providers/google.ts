@@ -63,7 +63,7 @@ export async function translateWithGoogle(selection: string, targetLanguage: str
 
 		return result;
 	} catch (error) {
-		console.error('[ERROR] Google translation failed:', error);
+		logger.error('Google translation failed:', error);
 		return 'Translation failed';
 	}
 }
