@@ -1,0 +1,32 @@
+{
+  "failures": [
+    {
+      "title": "HoverOrchestrator debounce and sequencing: only latest request wins",
+      "err": "Error: Timeout of 5000ms exceeded. For async tests and hooks, ensure \"done()\" is called; if returning a Promise, ensure it resolves. (/Users/kazus/Gits/vscode-translate-hover/out/test/hover.orchestrator.test.js)\n    at listOnTimeout (node:internal/timers:605:17)\n    at process.processTimers (node:internal/timers:541:7)"
+    },
+    {
+      "title": "HoverOrchestrator Cache Eviction evicts oldest entry under load",
+      "err": "Error: Timeout of 5000ms exceeded. For async tests and hooks, ensure \"done()\" is called; if returning a Promise, ensure it resolves. (/Users/kazus/Gits/vscode-translate-hover/out/test/hover.cache-eviction.test.js)\n    at listOnTimeout (node:internal/timers:605:17)\n    at process.processTimers (node:internal/timers:541:7)"
+    },
+    {
+      "title": "Hover race & cancellation only latest hover wins when requests overlap",
+      "err": "TypeError: vscode.workspace.onDidChangeConfiguration is not a function\n    at Object.activate (out/src/extension.js:60:49)\n    at Context.<anonymous> (out/test/hover-race.test.js:69:25)"
+    },
+    {
+      "title": "Hover concurrency & cancellation cache evicts oldest entries under rapid requests",
+      "err": "TypeError: vscode.workspace.onDidChangeConfiguration is not a function\n    at Object.activate (out/src/extension.js:60:49)\n    at Context.<anonymous> (out/test/hover-concurrency.test.js:79:25)"
+    },
+    {
+      "title": "Hover concurrency & cancellation hover is cancelled when token requests cancellation during debounce/provider",
+      "err": "TypeError: vscode.workspace.onDidChangeConfiguration is not a function\n    at Object.activate (out/src/extension.js:60:49)\n    at Context.<anonymous> (out/test/hover-concurrency.test.js:140:25)"
+    },
+    {
+      "title": "Hover cache E2E cached hover is returned immediately without debounce",
+      "err": "TypeError: vscode.workspace.onDidChangeConfiguration is not a function\n    at Object.activate (out/src/extension.js:60:49)\n    at Context.<anonymous> (out/test/hover-cache.test.js:76:25)"
+    },
+    {
+      "title": "Activation registers hover provider in subscriptions",
+      "err": "TypeError: vscode.workspace.onDidChangeConfiguration is not a function\n    at Object.activate (out/src/extension.js:60:49)\n    at Context.<anonymous> (out/test/activation.test.js:57:25)"
+    }
+  ]
+}

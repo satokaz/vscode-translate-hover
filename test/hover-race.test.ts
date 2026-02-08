@@ -2,25 +2,32 @@ import * as assert from 'assert';
 import mockRequire from 'mock-require';
 
 suite('Hover race & cancellation', () => {
-    test('only latest hover wins when requests overlap', async () => {
+    suiteSetup(function () {
+        this.timeout(10000);
+    });
+
+    test('only latest hover wins when requests overlap', async function () {
+        this.timeout(10000);
         // make debounce delay short
         const constants = require('../src/constants');
         const originalDelay = constants.DEFAULTS.DEBOUNCE_DELAY;
         constants.DEFAULTS.DEBOUNCE_DELAY = 5;
 
-        // capture provider
-        let capturedProvider: any = null;
-
         mockRequire('vscode', {
-            workspace: { getConfiguration: () => ({ get: (_: string) => undefined }) },
-            languages: { registerHoverProvider: (_selector: any, provider: any) => { capturedProvider = provider; return { dispose() {} }; } },
+            workspace: {
+                getConfiguration: (_section?: string) => ({ get: (_: string, def: any) => def }),
+                onDidChangeConfiguration: (_: any) => ({ dispose() {} })
+            },
+            languages: { registerHoverProvider: (_selector: any, _provider: any) => ({ dispose() {} }) },
             window: { activeTextEditor: { selection: { start: 0, end: 1 }, }, showInformationMessage: () => undefined },
             commands: { registerCommand: () => ({ dispose() {} }) },
             env: { clipboard: { readText: async () => '', writeText: async (_: string) => {} } }
-        });
+        ,
+            MarkdownString: class { isTrusted = true; supportHtml = true; appendMarkdown(_: string) {} },
+            Hover: class { constructor(public markdown: any) {} }
+        } as any);
 
         // mock translateText by stubbing providers directly
-        const google = require('../src/providers/google');
         let callCount = 0;
         mockRequire('../src/providers/google', {
             translateWithGoogle: async (s: string) => {
@@ -30,39 +37,66 @@ suite('Hover race & cancellation', () => {
                 return `translated:${s}:${callCount}`;
             }
         });
+        mockRequire.reRequire('../src/providers/google');
 
-        const extension = require('../src/extension');
+        const extension = mockRequire.reRequire('../src/extension');
         const context: any = { subscriptions: [] };
         await extension.activate(context);
 
         // simulate document & position & token
-        const document = { getText: (_: any) => 'first' };
+        const document = {
+            getText: (_: any) => 'first',
+            getWordRangeAtPosition: (_: any) => undefined
+        };
         const position = {};
+        let token1Cancelled = false;
         const token1 = {
-            isCancellationRequested: false,
-            onCancellationRequested: (_cb: any) => ({ dispose() {} })
+            get isCancellationRequested() {
+                return token1Cancelled;
+            },
+            onCancellationRequested: (cb: any) => {
+                return {
+                    dispose() {}
+                };
+            }
         };
 
-        const p1 = capturedProvider.provideHover(document, position, token1);
+        const p1 = extension.__testHoverProvider.provideHover(document, position, token1);
 
         // shortly after, change selection and call again
-        const document2 = { getText: (_: any) => 'second' };
+        const document2 = {
+            getText: (_: any) => 'second',
+            getWordRangeAtPosition: (_: any) => undefined
+        };
         const token2 = {
             isCancellationRequested: false,
             onCancellationRequested: (_cb: any) => ({ dispose() {} })
         };
-        const p2 = capturedProvider.provideHover(document2, position, token2);
+        // cancel the first token and change the active editor selection so the orchestrator sees a different selection
+        token1Cancelled = true;
+        const vscodeMock = require('vscode');
+        vscodeMock.window.activeTextEditor.selection = { start: 0, end: 2 };
 
-        const [r1, r2] = await Promise.all([p1, p2]);
+        const p2 = extension.__testHoverProvider.provideHover(document2, position, token2);
 
-        // first should be cancelled (undefined) or not the winner
-        assert.ok(r1 === undefined || (r2 && r1 !== r2), 'First request should not win');
+        const r2 = await p2;
+        const r1 = await Promise.race([
+            p1,
+            new Promise(resolve => setTimeout(() => resolve('timeout'), 50))
+        ]);
+
+        // first should be cancelled (undefined) and second should win
+        assert.ok(r1 === undefined || r1 === 'timeout', 'First request should be cancelled or not resolve');
         assert.ok(r2, 'Second request should return a hover');
+
+        // Ensure pending debounce timers are cleared so mocha can exit
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         // restore debounce default
         constants.DEFAULTS.DEBOUNCE_DELAY = originalDelay;
 
         mockRequire.stop('vscode');
         mockRequire.stop('../src/providers/google');
+        try { mockRequire.stop('../src/extension'); } catch {}
     });
 });

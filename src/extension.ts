@@ -13,6 +13,8 @@ import { HoverOrchestrator } from './hover/orchestrator';
 
 
 
+export let __testHoverProvider: any | undefined = undefined;
+
 export function activate(context: vscode.ExtensionContext) {
 	// ログ出力チャネルを初期化
 	logger.initializeLogger('Translate Hover');
@@ -48,6 +50,8 @@ export function activate(context: vscode.ExtensionContext) {
 		createHover,
 		logger
 	});
+	// expose orchestrator for tests
+	__testHoverProvider = orchestration;
 
 	const hoverDisposable = vscode.languages.registerHoverProvider('*', {
 		provideHover: orchestration.provideHover.bind(orchestration)
@@ -162,7 +166,7 @@ async function translateText(
 ): Promise<string> {
 	// 自動言語検出が有効な場合、適切なターゲット言語を決定
 	let targetLanguage = config.targetLanguage;
-	if (config.targetLanguage.startsWith(AUTO_DETECT_PREFIX)) {
+	if (config.targetLanguage && config.targetLanguage.startsWith(AUTO_DETECT_PREFIX)) {
 		let detectedLang: string | undefined;
 		
 		// LLMベース言語検出（OpenAI使用時のみ）

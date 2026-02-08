@@ -8,7 +8,7 @@ suite('Activation', () => {
 
 		// mock vscode with minimal features used during activation
 		mockRequire('vscode', {
-			workspace: { getConfiguration: () => ({ get: (_: string) => undefined }) },
+			workspace: { getConfiguration: () => ({ get: (_: string) => undefined }), onDidChangeConfiguration: (_cb: any) => ({ dispose() {} }) },
 			languages: { registerHoverProvider: (_selector: any, _provider: any) => sentinel },
 			window: { activeTextEditor: undefined, showInformationMessage: () => undefined },
 			commands: { registerCommand: () => ({ dispose() {} }) },

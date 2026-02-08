@@ -10,14 +10,20 @@ suite('Provider tests', () => {
                 dict: [{ terms: ['A', 'B'] }]
             }
         });
+        // ensure no prior provider mock interferes
+        try { mockRequire.stop('../src/providers/google'); } catch (e) {}
         mockRequire('axios', axiosStub);
 
-        const google = require('../src/providers/google');
+        const google = mockRequire.reRequire('../src/providers/google');
+        console.log('DEBUG google.translateWithGoogle type:', typeof google.translateWithGoogle);
         const res = await google.translateWithGoogle('x', 'ja');
+        console.log('DEBUG google translate result:', res);
         assert.ok(res.includes('Hello world'));
         assert.ok(res.includes('A'));
 
         mockRequire.stop('axios');
+        try { mockRequire.stop('../src/providers/google'); } catch (e) {}
+
     });
 
     test('Google translate handles abort via AbortSignal', async () => {
@@ -31,9 +37,10 @@ suite('Provider tests', () => {
             sig?.addEventListener('abort', onAbort);
             setTimeout(() => resolve({ data: { sentences: [{ trans: 'x' }] } }), 50);
         });
+        try { mockRequire.stop('../src/providers/google'); } catch (e) {}
         mockRequire('axios', axiosStub);
 
-        const google = require('../src/providers/google');
+        const google = mockRequire.reRequire('../src/providers/google');
         const ac = new AbortController();
         const p = google.translateWithGoogle('x', 'ja', ac.signal);
         setTimeout(() => ac.abort(), 10);
@@ -41,6 +48,8 @@ suite('Provider tests', () => {
         assert.strictEqual(res, 'Translation cancelled');
 
         mockRequire.stop('axios');
+        try { mockRequire.stop('../src/providers/google'); } catch (e) {}
+
     });
 
     test('OpenAI translate returns content and handles abort', async () => {
@@ -61,7 +70,7 @@ suite('Provider tests', () => {
 
         mockRequire('openai', OpenAIMock);
 
-        const openaiProvider = require('../src/providers/openai');
+        const openaiProvider = mockRequire.reRequire('../src/providers/openai');
         const config = { openaiApiKey: 'k', openaiBaseUrl: '', openaiModel: 'm', translationMethod: 'openai', reasoningEffort: '' };
 
         // normal translate

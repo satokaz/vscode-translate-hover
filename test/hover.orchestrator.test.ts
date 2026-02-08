@@ -4,6 +4,9 @@ import type * as vscode from 'vscode';
 
 suite('HoverOrchestrator', () => {
     test('debounce and sequencing: only latest request wins', async () => {
+        const constants = require('../src/constants');
+        const originalDelay = constants.DEFAULTS.DEBOUNCE_DELAY;
+        constants.DEFAULTS.DEBOUNCE_DELAY = 5;
         let translateCalls: string[] = [];
 
         const fakeTranslate = async (s: string) => {
@@ -42,6 +45,8 @@ suite('HoverOrchestrator', () => {
             const r1Any = r1 as any;
             assert.notStrictEqual(r1Any.markdown.content, r2Any.markdown.content);
         }
+        // restore debounce
+        constants.DEFAULTS.DEBOUNCE_DELAY = originalDelay;
     });
 
     test('cancellation during debounce returns undefined', async () => {

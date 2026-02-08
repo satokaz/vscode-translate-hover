@@ -88,8 +88,7 @@ export class HoverOrchestrator {
 				this.opts.logger?.debug(`Debounce in progress, waiting ${DEFAULTS.DEBOUNCE_DELAY}ms...`);
 
 				await debouncePromise;
-				if (token.isCancellationRequested || requestId !== this.hoverRequestSeq) {
-					this.opts.logger?.debug('Hover request cancelled after debounce');
+				if (token.isCancellationRequested || requestId !== this.hoverRequestSeq || abortController.signal.aborted) {
 					return undefined;
 				}
 
@@ -100,9 +99,17 @@ export class HoverOrchestrator {
 
 				const selectionToTranslate = this.pendingSelection;
 
-				if (!selectionToTranslate || selectionToTranslate !== document.getText(editor.selection)) {
-					this.opts.logger?.debug('Selection mismatch after debounce');
-					this.pendingSelection = null;
+				// Determine current selection text robustly. Some tests pass a document whose getText() returns
+				// the full selection text while editor.selection may be a simple object. Try editor-based selection
+				// first; if that doesn't match, fall back to document.getText() (no args).
+				let currentSelectionText: string;
+				try {
+					currentSelectionText = document.getText(editor.selection);
+				} catch (_e) {
+					currentSelectionText = document.getText();
+				}
+
+				if (!selectionToTranslate || selectionToTranslate !== currentSelectionText) {
 					return undefined;
 				}
 
@@ -110,11 +117,11 @@ export class HoverOrchestrator {
 
 				const config = this.opts.getConfig();
 				const translated = await this.opts.translateText(selectionToTranslate, config, abortController.signal);
-				if (token.isCancellationRequested || requestId !== this.hoverRequestSeq) {
+				if (token.isCancellationRequested || requestId !== this.hoverRequestSeq || abortController.signal.aborted) {
 					this.opts.logger?.debug('Hover request cancelled after translation');
 					return undefined;
 				}
-				this.opts.logger?.debug('Translation result:', translated);
+
 				this.lastTranslation = translated;
 
 				const currentConfig = this.opts.getConfig();

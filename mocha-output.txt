@@ -1,0 +1,128 @@
+
+
+  Activation
+[2026-02-08T08:56:22.236Z] [DEBUG] Config loaded: {"hasApiKey":false}
+[2026-02-08T08:56:22.236Z] [INFO] Extension "vscode-translate-hover" is now active!
+    ✔ registers hover provider in subscriptions
+
+  LRU Cache Tests
+    ✔ evicts oldest entry when capacity exceeded
+
+  Utils Tests
+    ✔ formatTranslationResult adds spacing around fullwidth parentheses
+    ✔ resolveTargetLanguage uses detected language when provided
+    ✔ resolveTargetLanguage falls back to primary language
+    ✔ buildGoogleTranslateUrl includes expected parameters
+    ✔ isJapanese detects Japanese text by ratio
+    ✔ isChinese detects Chinese text and excludes Japanese-only scripts
+    ✔ isKorean detects Korean text by ratio
+    ✔ detectLanguage returns expected language codes
+
+  Hover cache E2E
+[2026-02-08T08:56:22.239Z] [INFO] Extension "vscode-translate-hover" is now active!
+    1) cached hover is returned immediately without debounce
+
+  Hover concurrency & cancellation
+[2026-02-08T08:56:22.239Z] [INFO] Extension "vscode-translate-hover" is now active!
+    2) cache evicts oldest entries under rapid requests
+[2026-02-08T08:56:22.240Z] [INFO] Extension "vscode-translate-hover" is now active!
+    3) hover is cancelled when token requests cancellation during debounce/provider
+
+  Hover race & cancellation
+[2026-02-08T08:56:22.240Z] [INFO] Extension "vscode-translate-hover" is now active!
+    4) only latest hover wins when requests overlap
+
+  HoverOrchestrator Cache Eviction
+    ✔ evicts oldest entry under load (218ms)
+
+  HoverOrchestrator
+    5) debounce and sequencing: only latest request wins
+    ✔ cancellation during debounce returns undefined
+
+  OpenAI system role cache behavior
+[2026-02-08T08:56:22.507Z] [ERROR] System role check failed: {}
+[2026-02-08T08:56:22.507Z] [ERROR] Preload check failed for m-net : network
+    ✔ network failure does not write cache (undetermined)
+[2026-02-08T08:56:22.508Z] [INFO] Preloaded system role support for m-deterministic : false
+    ✔ determinative system-role error caches false
+
+  OpenAI Utils Tests
+    ✔ normalizeReasoningEffort returns valid values only
+    ✔ isSystemRoleError detects relevant error shapes
+
+  Provider tests
+    6) Google translate parses sentences and dict
+    7) Google translate handles abort via AbortSignal
+[2026-02-08T08:56:22.555Z] [INFO] Checking system role support for model: m
+    ✔ OpenAI translate returns content and handles abort
+
+
+  17 passing (348ms)
+  7 failing
+
+  1) Hover cache E2E
+       cached hover is returned immediately without debounce:
+     TypeError: Cannot read properties of null (reading 'provideHover')
+      at Context.<anonymous> (out/test/hover-cache.test.js:81:43)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+  2) Hover concurrency & cancellation
+       cache evicts oldest entries under rapid requests:
+     TypeError: Cannot read properties of null (reading 'provideHover')
+      at /Users/kazus/Gits/vscode-translate-hover/out/test/hover-concurrency.test.js:85:58
+      at Array.map (<anonymous>)
+      at Context.<anonymous> (out/test/hover-concurrency.test.js:85:32)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+  3) Hover concurrency & cancellation
+       hover is cancelled when token requests cancellation during debounce/provider:
+     TypeError: Cannot read properties of null (reading 'provideHover')
+      at Context.<anonymous> (out/test/hover-concurrency.test.js:151:45)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+  4) Hover race & cancellation
+       only latest hover wins when requests overlap:
+     TypeError: Cannot read properties of null (reading 'provideHover')
+      at Context.<anonymous> (out/test/hover-race.test.js:77:37)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+  5) HoverOrchestrator
+       debounce and sequencing: only latest request wins:
+     AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert.ok(r2Any && r2Any.markdown.content.includes('t:two'))
+
+      at Context.<anonymous> (out/test/hover.orchestrator.test.js:66:16)
+
+  6) Provider tests
+       Google translate parses sentences and dict:
+
+      AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert.ok(res.includes('Hello world'))
+
+      + expected - actual
+
+      -false
+      +true
+      
+      at Context.<anonymous> (out/test/providers.test.js:53:16)
+
+  7) Provider tests
+       Google translate handles abort via AbortSignal:
+
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'translated:x:2'
+- 'Translation cancelled'
+
+      + expected - actual
+
+      -translated:x:2
+      +Translation cancelled
+      
+      at Context.<anonymous> (out/test/providers.test.js:74:16)
+
+
+

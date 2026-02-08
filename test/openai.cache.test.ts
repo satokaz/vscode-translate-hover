@@ -9,7 +9,7 @@ suite('OpenAI system role cache behavior', () => {
         };
         mockRequire('openai', OpenAIMock as any);
 
-        const openai = require('../src/providers/openai');
+        const openai = mockRequire.reRequire('../src/providers/openai');
         const model = 'm-net';
         await openai.preloadSystemRoleSupportForModel('k', '', model);
 
@@ -27,7 +27,7 @@ suite('OpenAI system role cache behavior', () => {
         };
         mockRequire('openai', OpenAIMock as any);
 
-        const openai = require('../src/providers/openai');
+        const openai = mockRequire.reRequire('../src/providers/openai');
         const model = 'm-deterministic';
         await openai.preloadSystemRoleSupportForModel('k', '', model);
 

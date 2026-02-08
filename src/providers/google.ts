@@ -2,7 +2,15 @@
  * Google翻訳プロバイダー
  */
 
-import * as vscode from 'vscode';
+let vscode: typeof import('vscode') | undefined;
+try {
+	// `vscode` module is available in the extension host, but not in plain node test runs.
+	// We keep this optional so provider unit tests can run without the real module.
+	// eslint-disable-next-line @typescript-eslint/no-var-requires
+	vscode = require('vscode');
+} catch {
+	vscode = undefined;
+}
 import axios, { AxiosProxyConfig, AxiosRequestConfig } from 'axios';
 import { DEFAULTS } from '../constants';
 import * as logger from '../utils/logger';
@@ -12,8 +20,8 @@ import * as logger from '../utils/logger';
  */
 export async function translateWithGoogle(selection: string, targetLanguage: string, signal?: AbortSignal): Promise<string> {
 	const translateUrl = buildGoogleTranslateUrl(selection, targetLanguage);
-	const cfg = vscode.workspace.getConfiguration();
-	const proxyStr = cfg.get<string>("http.proxy");
+	const cfg = vscode?.workspace.getConfiguration();
+	const proxyStr = cfg?.get<string>("http.proxy");
 
 	interface GoogleTranslateSentence {
 		trans?: string;
